@@ -1,10 +1,10 @@
-# Web Agent Bridge
+# GPT Web Agent
 
 [English](README.md)
 
 让 ChatGPT 网页通过 MCP，直接读取本机项目、修改代码、执行测试、查看错误并继续修正。
 
-**当前为实验版 0.1.0，** 本地 11 项测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/web-agent-bridge](https://github.com/yyyqt/web-agent-bridge)。尚未发布到 npm 或 ChatGPT 插件商店。
+**当前为实验版 0.1.0，** 本地 11 项测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
 
 ## 它负责什么
 

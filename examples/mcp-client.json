@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "web-agent-bridge": {
+    "gpt-web-agent": {
       "command": "node",
       "args": [
-        "/ABSOLUTE/PATH/web-agent-bridge/src/cli.js",
+        "/ABSOLUTE/PATH/gpt-web-agent/src/cli.js",
         "--root",
         "/ABSOLUTE/PATH/demo",
         "--allow-host-exec"

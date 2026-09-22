@@ -59,5 +59,5 @@ claim of production reliability or a long-duration soak test.
 - Long-running autonomous model execution, browser/SSH/database integrations.
 - Cross-client/account permission isolation; this runtime is single-user.
 
-Source is published at https://github.com/yyyqt/web-agent-bridge .
+Source is published at https://github.com/yyyqt/gpt-web-agent .
 No npm or ChatGPT plugin-store publication is claimed.

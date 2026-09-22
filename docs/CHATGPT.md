@@ -35,12 +35,12 @@ usage; verify any applicable costs and permissions in your account.
 ```sh
 tunnel-client init \
   --sample sample_mcp_stdio_local \
-  --profile web-agent-bridge \
+  --profile gpt-web-agent \
   --tunnel-id YOUR_TUNNEL_ID \
-  --mcp-command 'node /ABSOLUTE/PATH/web-agent-bridge/src/cli.js --root /ABSOLUTE/PATH/demo --allow-host-exec'
+  --mcp-command 'node /ABSOLUTE/PATH/gpt-web-agent/src/cli.js --root /ABSOLUTE/PATH/demo --allow-host-exec'
 
-tunnel-client doctor --profile web-agent-bridge --explain
-tunnel-client run --profile web-agent-bridge
+tunnel-client doctor --profile gpt-web-agent --explain
+tunnel-client run --profile gpt-web-agent
 ```
 
 Use simple paths without spaces for the first test; if your paths contain spaces,
@@ -48,7 +48,7 @@ follow `tunnel-client help quickstart` for its command quoting rules. A standalo
 wrapper script with a fixed command can avoid nested quoting.
 
 8. In https://chatgpt.com/plugins , add a developer-mode app. Select Tunnel under
-   Connection; choose the associated tunnel or enter its ID. Name it Web Agent Bridge. For this private stdio server, select No Authentication
+   Connection; choose the associated tunnel or enter its ID. Name it GPT Web Agent. For this private stdio server, select No Authentication
    at the MCP application layer: access is authenticated by the private tunnel and
    its organization/workspace permissions. This is not permission to expose an
    unauthenticated public endpoint.

@@ -1,4 +1,4 @@
-Use only the Web Agent Bridge connection for the following local project task.
+Use only the GPT Web Agent connection for the following local project task.
 First call workspace_info and list_files to confirm the disposable demo workspace.
 Do not operate outside it, read credentials, deploy, publish, or contact external services.
 

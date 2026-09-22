@@ -1,4 +1,4 @@
-# Web Agent Bridge
+# GPT Web Agent
 
 [中文说明](README.zh-CN.md)
 
@@ -7,14 +7,14 @@ edit files, run tests, inspect failures, and keep task checkpoints.
 
 **Status: experimental 0.1.0.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
-Source: [yyyqt/web-agent-bridge](https://github.com/yyyqt/web-agent-bridge).
+Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
 
 ```text
 ChatGPT web (reasoning and tool selection)
           │ MCP through a private authenticated tunnel
           ▼
-Web Agent Bridge (local tool runtime)
+GPT Web Agent (local tool runtime)
           ├─ workspace files + optimistic edits
           ├─ optional host commands + bounded results
           └─ task checkpoints + metadata-only audit log

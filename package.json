@@ -1,5 +1,5 @@
 {
-  "name": "web-agent-bridge",
+  "name": "gpt-web-agent",
   "version": "0.1.0",
   "description": "A local MCP tool runtime for browser-based AI agents. No model proxy or inference API required by the runtime.",
   "type": "module",
@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "bin": {
-    "web-agent-bridge": "src/cli.js"
+    "gpt-web-agent": "src/cli.js"
   },
   "files": [
     "src",

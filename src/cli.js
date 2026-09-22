@@ -7,8 +7,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { Runtime } from './runtime.js';
 import { createServer } from './server.js';
 
-const HELP = `web-agent-bridge 0.1.0
-Usage: web-agent-bridge --root /absolute/workspace [options]
+const HELP = `gpt-web-agent 0.1.0
+Usage: gpt-web-agent --root /absolute/workspace [options]
   --transport stdio|http  Default: stdio. HTTP binds ONLY to 127.0.0.1.
   --port 8788            Local HTTP port (1024-65535).
   --read-only            Expose no file/task mutations or command tools.
@@ -90,4 +90,4 @@ async function shutdown() {
   try { await runtime?.close(); await Promise.all([...servers].map(s => s.close())); }
   catch (e) { process.stderr.write(`Shutdown error: ${e.message}\n`); process.exitCode = 1; }
 }
-main().catch(async e => { process.stderr.write(`web-agent-bridge: ${e.message}\n`); await shutdown(); process.exitCode = 1; });
+main().catch(async e => { process.stderr.write(`gpt-web-agent: ${e.message}\n`); await shutdown(); process.exitCode = 1; });
