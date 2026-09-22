@@ -3,6 +3,8 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
+import { StringDecoder } from 'node:string_decoder';
+import { downloadImage, validateImage, IMAGE_LIMIT } from './images.js';
 
 export const DEFAULT_LIMITS = { fileBytes: 1048576, outputBytes: 131072, concurrency: 4, timeoutSeconds: 600 };
 const LIMIT_RANGES = { fileBytes: [1024, 16777216], outputBytes: [1024, 16777216], concurrency: [1, 16], timeoutSeconds: [1, 86400] };
@@ -120,6 +122,54 @@ export class Runtime {
       return { path: relative, sha256: hash(content), bytes: Buffer.byteLength(content) };
     });
   }
+  async patch({ path: relative, expectedSha256, edits }) {
+    this.writable();
+    const original = await this.file(relative);
+    if (original.sha256 !== expectedSha256) fail('CONFLICT', 'File changed; read it again');
+    if (!Array.isArray(edits) || !edits.length || edits.length > 100) fail('INVALID_PATCH', 'Supply 1-100 edits');
+    const ranges = edits.map(({ oldText, newText }) => {
+      if (typeof oldText !== 'string' || !oldText.length || typeof newText !== 'string') fail('INVALID_PATCH', 'Each edit needs nonempty oldText and string newText');
+      const start = original.content.indexOf(oldText);
+      if (start < 0 || original.content.indexOf(oldText, start + 1) !== -1) fail('PATCH_MATCH', 'oldText must match exactly once in the original file');
+      return { start, end: start + oldText.length, newText };
+    }).sort((a, b) => a.start - b.start);
+    for (let i = 1; i < ranges.length; i++) if (ranges[i].start < ranges[i - 1].end) fail('PATCH_OVERLAP', 'Edits must not overlap');
+    let content = original.content;
+    for (const edit of ranges.reverse()) content = content.slice(0, edit.start) + edit.newText + content.slice(edit.end);
+    return this.write({ path: relative, content, expectedSha256 });
+  }
+  async importImage({ file, path: relative, expectedSha256 = null }) {
+    this.writable();
+    await this.resolve(relative, { missing: true });
+    const bytes = await downloadImage(file.download_url);
+    const info = await validateImage(bytes, relative, file.mime_type);
+    return this.exclusive(async () => {
+      const p = await this.resolve(relative, { missing: true });
+      let existing = null;
+      try {
+        const st = await fs.lstat(p);
+        if (!st.isFile() || st.nlink > 1 || st.size > IMAGE_LIMIT) fail('IMAGE_TARGET', 'Target must be a regular unlinked image-sized file');
+        existing = hash(await fs.readFile(p));
+      } catch (e) { if (e.code !== 'ENOENT') throw e; }
+      if (existing !== expectedSha256) fail('CONFLICT', 'Image target changed; null creates a new file only');
+      await fs.mkdir(path.dirname(p), { recursive: true });
+      await this.resolve(relative, { missing: true });
+      const tmp = path.join(path.dirname(p), `.bridge-${randomUUID()}.tmp`);
+      try {
+        await fs.writeFile(tmp, bytes, { flag: 'wx', mode: 0o600 });
+        await fs.rename(tmp, p);
+      } finally { await fs.rm(tmp, { force: true }); }
+      return { path: relative, sha256: hash(bytes), bytes: bytes.length, ...info };
+    });
+  }
+  output({ id, stream = 'stdout', offset = 0, limit = 16384 }) {
+    if (!['stdout', 'stderr'].includes(stream) || !Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 65536) fail('INVALID_PAGE', 'Invalid output page');
+    const job = this.job(id), value = job[stream];
+    if (offset > value.length || (offset > 0 && /[\uDC00-\uDFFF]/.test(value[offset] || ''))) fail('INVALID_OFFSET', 'Use a previously returned nextOffset');
+    let end = Math.min(offset + limit, value.length);
+    if (end < value.length && /[\uDC00-\uDFFF]/.test(value[end])) end++;
+    return { id, stream, offset, nextOffset: end, output: value.slice(offset, end), hasMore: end < value.length, status: job.status, exitCode: job.exitCode, truncated: job.truncated, offsetUnit: 'UTF-16 code units' };
+  }
   async search({ query, directory = '.', limit = 50 }) {
     const hits = [], skipped = [];
     let examined = 0, truncated = false;
@@ -187,10 +237,11 @@ export class Runtime {
     const child = spawn(executable, args, { cwd: working, env, detached: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
     if (input !== undefined) { child.stdin.on('error', e => { if (e.code !== 'EPIPE') process.stderr.write(`Codex stdin error: ${e.message}\n`); }); child.stdin.end(input); }
     job.child = child;
+    const decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') };
     const append = field => chunk => {
       const remaining = this.limits.outputBytes - job.bytes;
       const taken = chunk.subarray(0, Math.max(remaining, 0));
-      job[field] += taken.toString('utf8');
+      job[field] += decoders[field].write(taken);
       job.bytes += taken.length;
       if (taken.length < chunk.length) job.truncated = true;
     };
@@ -198,6 +249,7 @@ export class Runtime {
     child.stderr.on('data', append('stderr'));
       child.once('error', e => { job.stderr += `Spawn failed: ${e.message}`; job.status = 'failed'; });
       child.once('close', async (code, signal) => {
+        job.stdout += decoders.stdout.end(); job.stderr += decoders.stderr.end();
         job.closed = true;
         clearTimeout(job.timer);
         job.exitCode = code; job.signal = signal;

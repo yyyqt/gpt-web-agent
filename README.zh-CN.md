@@ -4,7 +4,7 @@
 
 让 ChatGPT 网页通过 MCP，直接读取本机项目、修改代码、执行测试、查看错误并继续修正。
 
-**当前为实验版 0.3.0。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
+**当前为实验版 0.4.0。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
 
 ## 它负责什么
 
@@ -113,10 +113,13 @@ MIT 许可证，中英文说明、测试、CI 和安全边界文档均在仓库�
 
 参阅 [安全说明](SECURITY.md) 和 [架构](docs/ARCHITECTURE.md)。这是独立项目，不代表 OpenAI 官方产品。
 
-## 图片能力
+## 图片、局部修改与日志分页
 
-网页原生生图与本地文件接收是不同能力。当前工具仅支持 UTF-8 文本读写，
-没有生成图片、图片二进制导入、ChatGPT 附件下载或自动图片落盘工具。
-不要把网页图片预览、sandbox 路径或附件 ID 当成本机文件路径。
-当前可先在 ChatGPT 保存图片到本机，再明确指定已下载文件交给本地命令处理；
-“一句话自动生图并放入项目”尚未实现或验收。SVG 源码可作为文本写入，但不等同于原生生图。
+- `import_image`：通过 ChatGPT 官方文件参数接收图片，完整解码并校验格式、尺寸、大小和路径后保存原始文件；返回路径、哈希和尺寸。支持 PNG/JPEG/WebP，最大 20 MiB、4000 万像素。
+- `patch_file`：只提交要替换的片段；基于原文件唯一匹配、不允许重叠，哈希冲突或任何片段失败则整次不写入。
+- `read_command_output`：分页读取 stdout/stderr，使用返回的 nextOffset 续读；中文和 emoji 不会因分页被拆坏。`get_command` 可设置 `includeOutput:false` 只查状态。
+
+2026-09-22 已在 ChatGPT Work 实测：网页原生生成月亮图，自动传给 `import_image` 并落入本地项目，无需手动下载上传。
+
+网页生图与文件传递是两个步骤；插件本身不调用生图 API。自动落盘需要当前 ChatGPT 会话把生成图片提供为真实文件引用，不能把预览或 sandbox 路径冒充本地文件。如果当前界面不支持直接传递，可下载后重新附加图片再导入。
+详见 [协议与边界](docs/IMAGES-AND-EDITS.md)。

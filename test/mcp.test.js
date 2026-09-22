@@ -22,7 +22,10 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function exercise(client, root) {
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 11);
+  assert.equal(tools.length, 14);
+  const image = tools.find(t => t.name === 'import_image');
+  assert.deepEqual(image._meta['openai/fileParams'], ['file']);
+  assert.deepEqual(image.inputSchema.properties.file.required, ['download_url', 'file_id']);
   assert.equal(tools.find(t => t.name === 'start_command').annotations.readOnlyHint, false);
   const info = data(await client.callTool({ name: 'workspace_info', arguments: {} }));
   assert.equal(info.sandboxed, false); assert.equal(info.hostExecution, true);
@@ -39,8 +42,12 @@ async function exercise(client, root) {
     assert.fail('Command did not finish');
   };
   const failed = await run(); assert.equal(failed.status, 'failed'); assert.notEqual(failed.exitCode, 0);
+  const page = data(await client.callTool({ name: 'read_command_output', arguments: { id: failed.id, stream: 'stderr', limit: 20 } }));
+  assert.equal(page.output.length, 20); assert.equal(page.hasMore, true);
+  const status = data(await client.callTool({ name: 'get_command', arguments: { id: failed.id, includeOutput: false } }));
+  assert.equal(status.stderr, undefined);
   const before = data(await client.callTool({ name: 'read_file', arguments: { path: 'sum.cjs' } }));
-  data(await client.callTool({ name: 'write_file', arguments: { path: 'sum.cjs', content: 'module.exports = (a, b) => a + b;', expectedSha256: before.sha256 } }));
+  data(await client.callTool({ name: 'patch_file', arguments: { path: 'sum.cjs', edits: [{ oldText: 'a - b', newText: 'a + b' }], expectedSha256: before.sha256 } }));
   assert.equal((await run()).status, 'succeeded');
   assert.match(await fs.readFile(path.join(root, 'sum.cjs'), 'utf8'), /a \+ b/);
   const bad = await client.callTool({ name: 'read_file', arguments: { path: '../secret' } });

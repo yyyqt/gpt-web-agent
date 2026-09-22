@@ -60,3 +60,9 @@ endpoints in public issues. Before public release, the maintainer should enable
 GitHub private vulnerability reporting and publish the reporting link here.
 Until then, share only a sanitized description privately with the maintainer.
 There is no independent security audit claim.
+
+Image import accepts only HTTPS OpenAI user-content hosts and checks every redirect;
+it does not accept arbitrary network URLs or access browser credentials. Image
+bytes are bounded and completely decoded before writing. Decoder dependencies
+must stay patched. Original image metadata is retained. File references and signed
+URLs are untrusted input, not authorization to modify a different path or project.

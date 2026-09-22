@@ -5,7 +5,7 @@
 Give a browser-based AI assistant tools to work on a real local project: read code,
 edit files, run tests, inspect failures, and keep task checkpoints.
 
-**Status: experimental 0.3.0.** Local MCP integration tests and a live ChatGPT web
+**Status: experimental 0.4.0.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
@@ -74,6 +74,9 @@ access-controlled private tunnel; all trusted local clients share this workspace
 | `list_files` | List one directory |
 | `read_file` | Read UTF-8 text and SHA-256 |
 | `search_text` | Literal search with file/line evidence |
+| `import_image` | Decode, validate and save a real ChatGPT image file reference |
+| `patch_file` | Atomic exact-match edits against an expected file hash |
+| `read_command_output` | Paginated stdout/stderr with continuation offsets |
 | `write_file` | Atomic replace with expected hash; `null` only for creation |
 | `list_tasks` / `save_task` | Resume a checkpoint using revision checks |
 | `start_command` | Start an opted-in host command, return a job ID |
@@ -141,6 +144,8 @@ See [architecture](docs/ARCHITECTURE.md), [security](SECURITY.md), and
 [contribution notes](CONTRIBUTING.md). MIT licensed. Independent project, not
 endorsed by OpenAI. No source code was copied from AgentDock or the article.
 
-Image generation and automatic ChatGPT image import are not implemented. File tools
-accept UTF-8 text, not binary images or ChatGPT attachment IDs. A web-generated
-image must first reach the local machine through a supported download/import path.
+New tools: `import_image` validates and saves ChatGPT file references;
+`patch_file` applies hash-checked local replacements; `read_command_output` reads
+logs in pages. Use `get_command` with `includeOutput:false` for status-only polling.
+See [protocols, limits and image handoff caveats](docs/IMAGES-AND-EDITS.md).
+The runtime does not call an image generation API.

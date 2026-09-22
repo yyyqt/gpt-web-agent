@@ -90,3 +90,25 @@ claim of production reliability or a long-duration soak test.
 
 Source is published at https://github.com/yyyqt/gpt-web-agent .
 No npm or ChatGPT plugin-store publication is claimed.
+
+## 0.4.0 images, patches and output pages — 2026-09-22
+
+21 automated tests pass, including actual stdio and HTTP tool calls for patches,
+status-only polling and output pagination; exact matching/conflicts/overlaps;
+Unicode pages and persisted output; image full decoding, malformed image rejection,
+extension mismatch, download URL/redirect/size validation and atomic import conflicts.
+
+Live ChatGPT Work validation (native image generation, no Codex delegation):
+- Native blue-moon image was directly passed to `import_image` and saved in a new
+  `bridge-acceptance/moon.png` inside the configured project. No manual transfer.
+- Original PNG: 1254×1254, 1,183,182 bytes; visually inspected locally.
+- SHA-256: `ba046232c4b03408a54ba8a0978f18d63fb1d9e90e1968089f8645eea52a77ab`.
+- `patch_file` changed a newly created sample from `alpha\nbeta` to `alpha\ngamma`;
+  verified by both web read-back and local file read.
+- A printf job exited 0; output pages were `中文😀` (offset0→4, hasMore=true)
+  and `\n分页🌙\n` (4→10, hasMore=false). No broken Unicode.
+- Existing business files were not targets of this acceptance test; no project
+  commit, deployment, or publication was performed.
+
+Other ChatGPT models/interfaces may expose different image/file capabilities.
+The bridge only receives files and does not meter or guarantee account image quota.
