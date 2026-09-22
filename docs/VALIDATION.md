@@ -112,3 +112,25 @@ Live ChatGPT Work validation (native image generation, no Codex delegation):
 
 Other ChatGPT models/interfaces may expose different image/file capabilities.
 The bridge only receives files and does not meter or guarantee account image quota.
+
+## 0.4.1 Chat / 6 Pro image handoff — 2026-09-22
+
+Chat with 6 Pro selected successfully generated a golden-star image. Initial
+imports failed because the runtime only allowed oaiusercontent.com, whereas
+ChatGPT file parameters supplied signed Azure Blob URLs. Observed exact hosts:
+`oaisdmntprcentralus.blob.core.windows.net` (original library image) and
+`oaisdmntprnorthcentralus.blob.core.windows.net` (exported attachment).
+Both exact accounts are now allowed; arbitrary Azure accounts remain denied.
+Diagnostics expose only protocol/hostname, never signed paths or query tokens.
+
+After the fix, a fresh Chat conversation with 6 Pro selected and the bridge
+explicitly attached retrieved the already-generated original from the user's
+ChatGPT library and imported it successfully. No Work-mode switch, Codex
+ delegation, image API call, or manual download/upload was used. Generation and
+import were separate requests; a one-prompt combined workflow is not established.
+
+Local result: `bridge-acceptance/chat-6pro-star.png`, 1254×1254 PNG, 1,636,459 bytes.
+SHA-256: `3dde2021814af40e9120a5e27bba177348d9684a7c209b950b4078e34c6c1e22`.
+The local file was visually inspected and its digest matched the tool response.
+21 automated tests pass, including exact-host acceptance, untrusted Azure account
+and lookalike-host rejection, signed-query redaction, and real PNG decoding/import.

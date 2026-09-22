@@ -4,7 +4,7 @@
 
 让 ChatGPT 网页通过 MCP，直接读取本机项目、修改代码、执行测试、查看错误并继续修正。
 
-**当前为实验版 0.4.0。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
+**当前为实验版 0.4.1。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
 
 ## 它负责什么
 
@@ -123,3 +123,5 @@ MIT 许可证，中英文说明、测试、CI 和安全边界文档均在仓库�
 
 网页生图与文件传递是两个步骤；插件本身不调用生图 API。自动落盘需要当前 ChatGPT 会话把生成图片提供为真实文件引用，不能把预览或 sandbox 路径冒充本地文件。如果当前界面不支持直接传递，可下载后重新附加图片再导入。
 详见 [协议与边界](docs/IMAGES-AND-EDITS.md)。
+
+0.4.1 另已实测「聊天 + 6 Pro」：先原生生图，再通过插件从 ChatGPT 资料库取回原图并保存到本地，无需手动下载上传。修复了聊天文件实际使用 Azure Blob 下载地址而被误拦的问题，仅增加两个实测域名。生图与导入分步验收，不承诺每次一句话自动完成。

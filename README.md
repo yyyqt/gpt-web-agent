@@ -5,7 +5,7 @@
 Give a browser-based AI assistant tools to work on a real local project: read code,
 edit files, run tests, inspect failures, and keep task checkpoints.
 
-**Status: experimental 0.4.0.** Local MCP integration tests and a live ChatGPT web
+**Status: experimental 0.4.1.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
@@ -149,3 +149,9 @@ New tools: `import_image` validates and saves ChatGPT file references;
 logs in pages. Use `get_command` with `includeOutput:false` for status-only polling.
 See [protocols, limits and image handoff caveats](docs/IMAGES-AND-EDITS.md).
 The runtime does not call an image generation API.
+
+0.4.1 also verifies Chat with 6 Pro selected: generate an image, then import the
+original from ChatGPT's library with the bridge. The fix admits the two exact
+Azure Blob hosts observed in ChatGPT's file handoff; other Azure accounts remain
+blocked. Generation/import were verified as separate requests, without manual
+file transfer. See the validation record for scope and limitations.

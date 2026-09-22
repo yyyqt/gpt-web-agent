@@ -11,7 +11,10 @@ its original bytes. It returns path, SHA-256, byte count, width, height and form
 It never reads browser cookies, generates images, or calls an image model API.
 Signed URLs are not returned or written to audit logs.
 
-Only HTTPS `*.oaiusercontent.com` hosts are accepted, including every redirect.
+Only HTTPS `*.oaiusercontent.com` and the exact ChatGPT attachment host
+`oaisdmntprnorthcentralus.blob.core.windows.net` and
+`oaisdmntprcentralus.blob.core.windows.net` are accepted, including every
+redirect. Other Azure storage accounts are not accepted.
 Downloads time out after 30 seconds; at most 20 MiB, 40 million pixels, 16384 pixels
 per side; single-frame PNG/JPEG/WebP only. These are separate from text-file limits.
 A file hosted elsewhere fails explicitly rather than widening network access.
@@ -46,3 +49,16 @@ surrogate pairs are never split. The limit may be exceeded by one unit to preser
 a pair. `hasMore:false` means caught up, not command completed: poll again while
 running. Completed output survives restart. Pages cannot recover bytes discarded
 by the total output retention cap. No per-line truncation is applied.
+
+## Chat / 6 Pro
+
+Live-tested in 0.4.1: Chat with 6 Pro selected generates an image; a later bridge
+request imports the original from ChatGPT's library without manual transfer.
+Explicitly select Web Agent Bridge in the chat. Ask it to pass the real attachment
+through `file`, not put a file ID or `/mnt/data` path into `download_url`.
+If needed, retrieve the original from the ChatGPT file library or re-export the
+existing generated file as an attachment. Do not redraw it. A generated preview
+alone is not proof of local delivery: require the import receipt with path/hash.
+The observed workflow used separate generate/import requests. Tool availability
+can vary across turns; reattach the plugin or start a new chat if it is missing.
+Other storage regions remain denied until separately verified and added.

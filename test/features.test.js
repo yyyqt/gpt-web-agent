@@ -34,7 +34,12 @@ test('log pages reconstruct Unicode output and survive restart', async t => {
   assert.throws(() => r.output({ id: j.id, offset: 3 }), code('INVALID_OFFSET'));
 });
 test('image downloads reject unsafe redirects and oversized bodies without exposing URLs', async () => {
+  assert.equal(imageURL('https://oaisdmntprnorthcentralus.blob.core.windows.net/private/file?sig=example').hostname, 'oaisdmntprnorthcentralus.blob.core.windows.net');
+  assert.equal(imageURL('https://oaisdmntprcentralus.blob.core.windows.net/file').hostname, 'oaisdmntprcentralus.blob.core.windows.net');
+  assert.throws(() => imageURL('https://untrusted.blob.core.windows.net/a'), code('IMAGE_URL'));
+  assert.throws(() => imageURL('https://oaisdmntprnorthcentralus.blob.core.windows.net.evil.com/a'), code('IMAGE_URL'));
   for (const url of ['http://files.oaiusercontent.com/a', 'https://localhost/a', 'https://files.oaiusercontent.com.evil.com/a', 'https://u:p@files.oaiusercontent.com/a']) assert.throws(() => imageURL(url), code('IMAGE_URL'));
+  assert.throws(() => imageURL('https://untrusted.blob.core.windows.net/a?sig=DO_NOT_EXPOSE'), e => e.code === 'IMAGE_URL' && !e.message.includes('DO_NOT_EXPOSE'));
   await assert.rejects(downloadImage('https://files.oaiusercontent.com/a', async () => new Response(null, { status: 302, headers: { location: 'https://127.0.0.1/private' } })), code('IMAGE_URL'));
   await assert.rejects(downloadImage('https://files.oaiusercontent.com/a', async () => new Response('x', { headers: { 'content-length': String(IMAGE_LIMIT + 1) } })), code('IMAGE_TOO_LARGE'));
 });
@@ -46,7 +51,7 @@ test('real image decoding and atomic import enforce format, path and conflicts',
   await assert.rejects(validateImage(bytes.subarray(0, 50), 'a.png'), code('IMAGE_INVALID'));
   const oldFetch = globalThis.fetch; globalThis.fetch = async () => new Response(bytes);
   t.after(() => { globalThis.fetch = oldFetch; });
-  const args = { file: { download_url: 'https://files.oaiusercontent.com/test', file_id: 'fixture', mime_type: 'image/png' }, path: 'assets/test.png' };
+  const args = { file: { download_url: 'https://oaisdmntprnorthcentralus.blob.core.windows.net/test?sig=fixture', file_id: 'fixture', mime_type: 'image/png' }, path: 'assets/test.png' };
   const saved = await r.importImage(args);
   assert.deepEqual(await fs.readFile(path.join(r.root, args.path)), bytes);
   await assert.rejects(r.importImage(args), code('CONFLICT'));

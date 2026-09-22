@@ -1,14 +1,16 @@
 import sharp from 'sharp';
 import path from 'node:path';
 import { BridgeError } from './runtime.js';
+// Observed from ChatGPT Chat's official file-parameter handoff. Do not allow arbitrary Azure accounts.
+export const CHAT_FILE_HOSTS = new Set(['oaisdmntprnorthcentralus.blob.core.windows.net', 'oaisdmntprcentralus.blob.core.windows.net']);
 export const IMAGE_LIMIT = 20 * 1024 * 1024;
 const reject = (code, message) => { throw new BridgeError(code, message); };
 export function imageURL(value) {
   let url;
-  try { url = new URL(value); } catch { reject('IMAGE_URL', 'Expected an HTTPS OpenAI file URL'); }
+  try { url = new URL(value); } catch { reject('IMAGE_URL', 'Expected an HTTPS OpenAI file URL. Pass the real attachment through ChatGPT file parameters; file IDs and sandbox paths are not download URLs.'); }
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') ||
-      !(url.hostname === 'files.oaiusercontent.com' || url.hostname.endsWith('.oaiusercontent.com')))
-    reject('IMAGE_URL', 'Only HTTPS oaiusercontent.com file hosts are accepted');
+      !(url.hostname === 'files.oaiusercontent.com' || url.hostname.endsWith('.oaiusercontent.com') || CHAT_FILE_HOSTS.has(url.hostname)))
+    reject('IMAGE_URL', `Unsupported file origin: ${url.protocol}//${url.hostname}. Expected an approved ChatGPT HTTPS file host. Pass a real attachment, not a file ID or sandbox path.`);
   return url;
 }
 export async function downloadImage(value, fetcher = fetch) {

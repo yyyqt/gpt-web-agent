@@ -7,7 +7,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { Runtime } from './runtime.js';
 import { createServer } from './server.js';
 
-const HELP = `gpt-web-agent 0.4.0
+const HELP = `gpt-web-agent 0.4.1
 Usage: gpt-web-agent --root /absolute/workspace [options]
   --transport stdio|http  Default: stdio. HTTP binds ONLY to 127.0.0.1.
   --port 8788            Local HTTP port (1024-65535).
