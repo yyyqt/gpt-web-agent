@@ -4,7 +4,7 @@
 
 让 ChatGPT 网页通过 MCP，直接读取本机项目、修改代码、执行测试、查看错误并继续修正。
 
-**当前为实验版 0.1.0，** 本地 11 项测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
+**当前为实验版 0.2.0。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
 
 ## 它负责什么
 
@@ -60,14 +60,52 @@ node src/cli.js --root /tmp/bridge-demo --allow-host-exec
 
 启动命令不等于测试通过。服务启动和 MCP 客户端测试通过也不等于 ChatGPT 网页已连接。
 
-## 明确的边界
+## 长任务和本地 Codex
 
-- 命令最多同时运行 2 个，每个最多 600 秒，输出最多 128 KiB。
-- 文件最大 1 MiB；不跟随符号链接、不开放常见密钥文件名。
-- 任务检查点会保存；命令输出不会跨服务重启保留。
-- 不支持交互终端、后台守护进程、自动定时调度、浏览器控制或远程 SSH 专用工具。
-- 开启命令后技术上可以调用本机已有命令行工具，但不代表本项目已验证这些集成。
-- 网页关闭后，不会自动产生新的模型推理或自行决定下一步任务。
+网页可以直接编辑文件，也可以通过 `start_codex` 把完整任务交给本机 Codex。
+Codex 使用已有 CLI 登录，独立完成读代码、修改、测试的循环；消耗 Codex 账户额度。
+不调用 Codex 桌面应用界面，也不是把 Codex 推理变成免费网页额度。
+
+```sh
+node src/cli.js --root /absolute/project --allow-host-exec --allow-codex \
+  --max-seconds 7200 --max-output-bytes 1048576 --max-file-bytes 4194304
+```
+
+首次使用先安装官方 Codex CLI 并执行 `codex login`。专用工具固定使用
+`codex exec --ignore-user-config --sandbox workspace-write`，复用登录但不加载
+个人全局配置里的其他 MCP 服务、模型覆盖或钩子。项目内 Codex 规则仍可能生效。
+模型使用 CLI 默认值；不要把不可信仓库当作隔离环境。
+
+工具立即返回任务 ID，使用 `get_command` 查看进度与退出码；`list_commands`
+可找回重连前的任务。最多保留 100 个结果，命令与 Codex 共用并发额度。
+
+### 可以关闭网页吗？
+
+可以关闭网页，**但要先确认任务已经派发，拿到任务 ID**。
+已启动的本地命令或 Codex 任务在本地执行器保持运行时继续；不需要网页一直打开。
+Codex 自己负责后续推理和工具循环。电脑需要保持开机、联网并避免睡眠。
+
+普通 ChatGPT 当前云端回合关闭标签页后是否完成整个工具循环，取决于 ChatGPT
+运行方式和审批状态；本项目不作保证。关闭标签页不等于主动点击“停止”。
+本项目也不会在 ChatGPT 回合结束后凭空启动新模型回合或自动处理待批准操作。
+
+已完成任务的状态、退出码和限量输出保存在本地 `.web-agent/job-*.json`，重启可查。
+服务正常关闭会取消运行任务；崩溃后未记录最终状态的任务标为 `interrupted`，
+不会自动重跑，避免重复写文件或产生外部副作用。这不是关机后继续运算。
+持续运行请看 [后台运行说明](docs/BACKGROUND.md)。
+
+### 限制现在可以配置
+
+| 项目 | 默认 | 可配置上限 |
+| --- | --- | --- |
+| 单任务时间 `--max-seconds` | 600 秒 | 24 小时 |
+| 并发 `--max-concurrent` | 2 | 16 |
+| 输出 `--max-output-bytes` | 128 KiB | 16 MiB |
+| UTF-8 文件 `--max-file-bytes` | 1 MiB | 16 MiB |
+
+这些是本项目资源保护设置，不是 GPT 固定限制。并发修改同一项目容易冲突，通常保留 2 即可。
+文件路径校验、密钥文件名拦截、哈希冲突检测继续保留；不会为了方便取消这些保护。
+暂未提供 PTY 交互终端、自动定时调度、浏览器控制或 SSH 专用工具。
 
 ## 开源
 

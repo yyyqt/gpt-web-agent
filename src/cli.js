@@ -7,19 +7,26 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { Runtime } from './runtime.js';
 import { createServer } from './server.js';
 
-const HELP = `gpt-web-agent 0.1.0
+const HELP = `gpt-web-agent 0.2.0
 Usage: gpt-web-agent --root /absolute/workspace [options]
   --transport stdio|http  Default: stdio. HTTP binds ONLY to 127.0.0.1.
   --port 8788            Local HTTP port (1024-65535).
   --read-only            Expose no file/task mutations or command tools.
   --allow-host-exec      Enable UNSANDBOXED host shell execution (macOS/Linux).
+  --allow-codex          Enable local Codex tasks using existing login, workspace-write.
+  --codex-bin PATH       Codex executable (default: codex from PATH).
+  --max-seconds N        Max job lifetime, 1-86400 (default 600).
+  --max-concurrent N     Concurrent jobs, 1-16 (default 2).
+  --max-output-bytes N   Combined job output, 1024-16777216 (default 131072).
+  --max-file-bytes N     Text file limit, 1024-16777216 (default 1048576).
   --help                 Show this help.
 
 Default: file read/write and task checkpoints, shell disabled.
 State/audit metadata is written to ROOT/.web-agent even in read-only mode.
 HTTP is for a trusted local tunnel/client ONLY; never publicly forward it
 without an authenticating gateway. Prefer the official Secure MCP Tunnel.
-No model API calls, browser cookies or ChatGPT session tokens are used.
+The bridge does not call model APIs or extract browser session tokens.
+Optional Codex tasks use the existing Codex login and account quota.
 `;
 let runtime, http;
 const servers = new Set();
@@ -27,14 +34,19 @@ async function main() {
   const { values } = parseArgs({ options: {
     root: { type: 'string' }, transport: { type: 'string', default: 'stdio' },
     port: { type: 'string', default: '8788' }, 'read-only': { type: 'boolean' },
-    'allow-host-exec': { type: 'boolean' }, help: { type: 'boolean' }
+    'allow-host-exec': { type: 'boolean' }, 'allow-codex': { type: 'boolean' }, 'codex-bin': { type: 'string' },
+    'max-seconds': { type: 'string' }, 'max-concurrent': { type: 'string' }, 'max-output-bytes': { type: 'string' }, 'max-file-bytes': { type: 'string' }, help: { type: 'boolean' }
   }, allowPositionals: false });
   if (values.help) { process.stdout.write(HELP); return; }
   if (!values.root || !path.isAbsolute(values.root)) throw new Error('--root must be an explicit absolute directory');
   if (!['stdio', 'http'].includes(values.transport)) throw new Error('--transport must be stdio or http');
-  if (values['read-only'] && values['allow-host-exec']) throw new Error('--read-only conflicts with --allow-host-exec');
-  if (values['allow-host-exec'] && process.platform === 'win32') throw new Error('Host execution requires macOS/Linux; use WSL on Windows');
-  runtime = new Runtime(values.root, { readOnly: !!values['read-only'], allowHostExec: !!values['allow-host-exec'] });
+  if (values['read-only'] && (values['allow-host-exec'] || values['allow-codex'])) throw new Error('--read-only conflicts with execution options');
+  if ((values['allow-host-exec'] || values['allow-codex']) && process.platform === 'win32') throw new Error('Host execution requires macOS/Linux; use WSL on Windows');
+  const limits = {};
+  for (const [flag, key] of Object.entries({ 'max-seconds': 'timeoutSeconds', 'max-concurrent': 'concurrency', 'max-output-bytes': 'outputBytes', 'max-file-bytes': 'fileBytes' })) {
+    if (values[flag] !== undefined) { if (!/^\d+$/.test(values[flag])) throw new Error(`--${flag} must be an integer`); limits[key] = Number(values[flag]); }
+  }
+  runtime = new Runtime(values.root, { readOnly: !!values['read-only'], allowHostExec: !!values['allow-host-exec'], allowCodex: !!values['allow-codex'], codexBinary: values['codex-bin'] || 'codex', limits });
   await runtime.init();
   if (runtime.allowHostExec) process.stderr.write('Host shell ENABLED: commands run with your OS user permissions. No sandbox.\n');
   if (values.transport === 'stdio') {
@@ -57,7 +69,7 @@ async function main() {
       try {
         for await (const chunk of req) {
           size += chunk.length;
-          if (size > 2 * 1024 * 1024) { res.writeHead(413).end('Request too large'); return; }
+          if (size > runtime.limits.fileBytes * 6 + 65536) { res.writeHead(413).end('Request too large'); return; }
           chunks.push(chunk);
         }
         let body;

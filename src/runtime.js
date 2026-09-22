@@ -2,9 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import os from 'node:os';
 
-const FILE_LIMIT = 1024 * 1024;
-const OUTPUT_LIMIT = 128 * 1024;
+export const DEFAULT_LIMITS = { fileBytes: 1048576, outputBytes: 131072, concurrency: 2, timeoutSeconds: 600 };
+const LIMIT_RANGES = { fileBytes: [1024, 16777216], outputBytes: [1024, 16777216], concurrency: [1, 16], timeoutSeconds: [1, 86400] };
 const PRIVATE = /^(?:\.web-agent|\.git|\.ssh|\.aws|\.gnupg|\.npmrc|\.netrc|\.env(?:\..*)?|.*\.(?:pem|key|p12))$/i;
 const hash = data => createHash('sha256').update(data).digest('hex');
 export class BridgeError extends Error {
@@ -13,10 +14,17 @@ export class BridgeError extends Error {
 const fail = (code, message) => { throw new BridgeError(code, message); };
 
 export class Runtime {
-  constructor(root, { allowHostExec = false, readOnly = false } = {}) {
+  constructor(root, { allowHostExec = false, allowCodex = false, codexBinary = 'codex', readOnly = false, limits = {} } = {}) {
     this.root = root;
     this.allowHostExec = allowHostExec && !readOnly;
     this.readOnly = readOnly;
+    this.allowCodex = allowCodex && !readOnly;
+    this.codexBinary = codexBinary;
+    this.limits = { ...DEFAULT_LIMITS, ...limits };
+    for (const [key, value] of Object.entries(this.limits)) {
+      const range = LIMIT_RANGES[key];
+      if (!range || !Number.isSafeInteger(value) || value < range[0] || value > range[1]) fail('INVALID_LIMIT', `Invalid ${key} limit`);
+    }
     this.jobs = new Map();
     this.closing = false;
     this.queue = Promise.resolve();
@@ -30,6 +38,16 @@ export class Runtime {
       if (st.isSymbolicLink() || !st.isDirectory()) fail('UNSAFE_STATE', '.web-agent must be a real directory');
     } catch (e) { if (e.code !== 'ENOENT') throw e; }
     await fs.mkdir(this.state, { mode: 0o700, recursive: true });
+    for (const name of (await fs.readdir(this.state)).filter(n => /^job-[a-f0-9-]{36}\.json$/.test(n))) {
+      const p = path.join(this.state, name), st = await fs.lstat(p);
+      if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1 || st.size > 128 * 1024 * 1024) fail('UNSAFE_STATE', 'Invalid job state file');
+      const job = JSON.parse(await fs.readFile(p, 'utf8'));
+      if (name !== `job-${job.id}.json` || typeof job.stdout !== 'string' || typeof job.stderr !== 'string' ||
+          !['running', 'succeeded', 'failed', 'cancelled', 'timed_out', 'interrupted'].includes(job.status)) fail('CORRUPT_STATE', 'Invalid saved job');
+      if (job.status === 'running') { job.status = 'interrupted'; job.recoveryNote = 'Previous runtime ended before recording a final result. No automatic retry; inspect side effects first.'; }
+      this.jobs.set(job.id, job);
+    }
+    if (this.jobs.size > 100) fail('CORRUPT_STATE', 'Too many saved jobs; inspect .web-agent');
   }
   // Serializes mutations from concurrent MCP clients, including optimistic writes.
   exclusive(fn) {
@@ -63,9 +81,9 @@ export class Runtime {
     const st = await fs.stat(p);
     if (!st.isFile()) fail('NOT_FILE', 'Expected a regular file');
     if (st.nlink > 1) fail('HARDLINK_DENIED', 'Hard-linked files are not exposed');
-    if (st.size > FILE_LIMIT) fail('FILE_TOO_LARGE', 'File exceeds the 1 MiB text limit');
+    if (st.size > this.limits.fileBytes) fail('FILE_TOO_LARGE', 'File exceeds configured text limit');
     const raw = await fs.readFile(p);
-    if (raw.length > FILE_LIMIT) fail('FILE_TOO_LARGE', 'File exceeds the 1 MiB text limit');
+    if (raw.length > this.limits.fileBytes) fail('FILE_TOO_LARGE', 'File exceeds configured text limit');
     let content;
     try { content = new TextDecoder('utf-8', { fatal: true }).decode(raw); }
     catch { fail('NOT_TEXT', 'File must be valid UTF-8'); }
@@ -81,7 +99,7 @@ export class Runtime {
   async write({ path: relative, content, expectedSha256 }) {
     this.writable();
     return this.exclusive(async () => {
-      if (Buffer.byteLength(content) > FILE_LIMIT) fail('FILE_TOO_LARGE', 'Content exceeds 1 MiB');
+      if (Buffer.byteLength(content) > this.limits.fileBytes) fail('FILE_TOO_LARGE', 'Content exceeds configured text limit');
       const p = await this.resolve(relative, { missing: true });
       if (p === this.root) fail('NOT_FILE', 'Cannot replace workspace root');
       let existing = null;
@@ -129,27 +147,44 @@ export class Runtime {
     await walk(directory);
     return { hits, examined, truncated, skipped: skipped.slice(0, 50), skippedCount: skipped.length };
   }
-  async startJob({ command, cwd = '.', timeoutSeconds = 120 }) {
+  async startJob({ command, cwd = '.', timeoutSeconds = Math.min(120, this.limits.timeoutSeconds) }) {
     this.writable();
     if (!this.allowHostExec) fail('EXEC_DISABLED', 'Restart with --allow-host-exec to permit unsandboxed commands');
+    if (typeof command !== 'string' || !command.length || command.length > 16000) fail('INVALID_COMMAND', 'Command must be 1-16000 characters');
+    return this.startProcess({ executable: '/bin/sh', args: ['-c', command], cwd, timeoutSeconds, kind: 'shell' });
+  }
+  async startCodex({ prompt, cwd = '.', timeoutSeconds = Math.min(1800, this.limits.timeoutSeconds) }) {
+    this.writable();
+    if (!this.allowCodex) fail('CODEX_DISABLED', 'Restart with --allow-codex to enable Codex tasks');
+    if (typeof prompt !== 'string' || !prompt.length || prompt.length > 32000) fail('INVALID_PROMPT', 'Prompt must be 1-32000 characters');
+    // Pass prompts via stdin, never interpolate them into a shell command.
+    return this.startProcess({ executable: this.codexBinary,
+      args: ['exec', '--ignore-user-config', '--sandbox', 'workspace-write', '--skip-git-repo-check', '--color', 'never', '-'],
+      input: prompt, cwd, timeoutSeconds, kind: 'codex' });
+  }
+  async startProcess({ executable, args, input, cwd, timeoutSeconds, kind }) {
+    this.writable();
+    if (!Number.isSafeInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > this.limits.timeoutSeconds) fail('INVALID_TIMEOUT', 'Timeout exceeds configured limit');
     if (this.closing) fail('SHUTTING_DOWN', 'Runtime is shutting down');
     const working = await this.resolve(cwd);
     if (!(await fs.stat(working)).isDirectory()) fail('NOT_DIRECTORY', 'cwd must be a directory');
     if (this.closing) fail('SHUTTING_DOWN', 'Runtime is shutting down');
     // Synchronous reservation after the awaited path checks prevents oversubscription.
-    if ([...this.jobs.values()].filter(j => j.status === 'running').length >= 2) fail('BUSY', 'At most two commands may run concurrently');
+    if ([...this.jobs.values()].filter(j => j.status === 'running').length >= this.limits.concurrency) fail('BUSY', 'Configured concurrent job limit reached');
     if (this.jobs.size >= 100) {
-      const finished = [...this.jobs].find(([, j]) => j.status !== 'running');
-      if (finished) this.jobs.delete(finished[0]);
+      const finished = [...this.jobs].find(([, j]) => j.status !== 'running' && (j.finishedAt || j.status === 'interrupted'));
+      if (finished) { this.jobs.delete(finished[0]); this.exclusive(() => fs.rm(path.join(this.state, `job-${finished[0]}.json`), { force: true })).catch(e => process.stderr.write(`Job eviction failed: ${e.message}\n`)); }
     }
     const id = randomUUID();
-    const job = { id, status: 'running', startedAt: new Date().toISOString(), stdout: '', stderr: '', truncated: false, exitCode: null, signal: null, bytes: 0 };
+    const job = { id, kind, cwd, status: 'running', startedAt: new Date().toISOString(), stdout: '', stderr: '', truncated: false, exitCode: null, signal: null, bytes: 0 };
     this.jobs.set(id, job);
     const env = { PATH: process.env.PATH || '/usr/bin:/bin', HOME: this.root, TMPDIR: process.env.TMPDIR || '/tmp', LANG: 'en_US.UTF-8' };
-    const child = spawn('/bin/sh', ['-c', command], { cwd: working, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    if (kind === 'codex') { env.HOME = os.homedir(); if (process.env.CODEX_HOME) env.CODEX_HOME = process.env.CODEX_HOME; }
+    const child = spawn(executable, args, { cwd: working, env, detached: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
+    if (input !== undefined) { child.stdin.on('error', e => { if (e.code !== 'EPIPE') process.stderr.write(`Codex stdin error: ${e.message}\n`); }); child.stdin.end(input); }
     job.child = child;
     const append = field => chunk => {
-      const remaining = OUTPUT_LIMIT - job.bytes;
+      const remaining = this.limits.outputBytes - job.bytes;
       const taken = chunk.subarray(0, Math.max(remaining, 0));
       job[field] += taken.toString('utf8');
       job.bytes += taken.length;
@@ -159,23 +194,39 @@ export class Runtime {
     child.stderr.on('data', append('stderr'));
     job.done = new Promise(resolve => {
       child.once('error', e => { job.stderr += `Spawn failed: ${e.message}`; job.status = 'failed'; });
-      child.once('close', (code, signal) => {
+      child.once('close', async (code, signal) => {
         clearTimeout(job.timer);
         job.exitCode = code; job.signal = signal;
         if (job.status === 'running') job.status = code === 0 ? 'succeeded' : 'failed';
         job.finishedAt = new Date().toISOString();
+        await this.persistJob(job);
         resolve();
       });
     });
     job.timer = setTimeout(() => this.stopJob(id, 'timed_out'), timeoutSeconds * 1000);
     job.timer.unref();
+    await this.persistJob(job);
     return this.job(id);
   }
   job(id) {
     const job = this.jobs.get(id);
-    if (!job) fail('JOB_NOT_FOUND', 'Unknown job (jobs expire when the server restarts or old results are evicted)');
+    if (!job) fail('JOB_NOT_FOUND', 'Unknown job (old results may have been evicted)');
     const { child, timer, done, bytes, ...result } = job;
     return result;
+  }
+  async persistJob(job) {
+    try {
+      await this.exclusive(async () => {
+        const tmp = path.join(this.state, `job-${job.id}-${randomUUID()}.tmp`);
+        try {
+          await fs.writeFile(tmp, JSON.stringify(this.job(job.id)), { flag: 'wx', mode: 0o600 });
+          await fs.rename(tmp, path.join(this.state, `job-${job.id}.json`));
+        } finally { await fs.rm(tmp, { force: true }); }
+      });
+    } catch (e) { job.persistenceWarning = `Job result could not be saved: ${e.message}`; process.stderr.write(job.persistenceWarning + '\n'); }
+  }
+  listJobs() {
+    return [...this.jobs.values()].map(j => ({ id: j.id, kind: j.kind, cwd: j.cwd, status: j.status, startedAt: j.startedAt, finishedAt: j.finishedAt, exitCode: j.exitCode })).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   }
   stopJob(id, status = 'cancelled') {
     const job = this.jobs.get(id);

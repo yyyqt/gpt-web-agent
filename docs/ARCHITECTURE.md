@@ -23,9 +23,11 @@ old revision/hash. It does not lock out external processes editing the workspace
    to the process group; side effects already performed are not rolled back.
 5. Model reads the result and decides the next tool call.
 
-There is no model backend inside the runtime. It cannot autonomously continue
-reasoning after the client conversation ends. A future scheduler would need its
-own model execution arrangement; persistent notes alone do not create an agent.
+The runtime has no built-in model backend. With --allow-codex, start_codex delegates
+a complete task to a separate local Codex CLI process, which runs its own model/tool
+loop independently of the browser. Completed job results are stored atomically as
+private JSON files. Interrupted records after restart are not automatically retried.
+A scheduler is not implemented; persistent notes alone do not create one.
 
 ## Extension direction (not implemented)
 

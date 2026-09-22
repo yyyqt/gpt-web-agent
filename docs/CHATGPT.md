@@ -52,8 +52,8 @@ wrapper script with a fixed command can avoid nested quoting.
    at the MCP application layer: access is authenticated by the private tunnel and
    its organization/workspace permissions. This is not permission to expose an
    unauthenticated public endpoint.
-9. Inspect discovered tools. With `--allow-host-exec`, this version exposes 10
-   tools. Without the flag it exposes 7; with `--read-only`, 5.
+9. Inspect discovered tools. With `--allow-host-exec`, this version exposes 11
+   tools; adding `--allow-codex` exposes 12. Codex-only exposes 11. Without either execution flag it exposes 7; with `--read-only`, 5.
 10. Start a new chat, attach the connection, and use the
     [acceptance prompt](../examples/acceptance-prompt.md). Keep write confirmations.
 11. Check the actual generated files and command exit status on the host before
@@ -90,5 +90,10 @@ plugin. Its code can be open-sourced while each user runs a private instance.
   a new chat. A prompt cannot override server startup policy.
 - Model does not call tools: select the custom app and explicitly request
   `workspace_info`, then `list_files`. Model-specific support must be live-tested.
-- Saved tasks still exist but job ID vanished: command state is in-memory; inspect
-  files and rerun only the necessary verification, not arbitrary previous mutations.
+- Reconnecting: use `list_commands` to locate saved results. Only the latest 100 jobs
+  are retained. An `interrupted` result means no reliable completion was recorded;
+  inspect files before retrying mutations.
+- No Codex tool: enable `--allow-codex`, restart the runtime, then refresh plugin
+  metadata in ChatGPT settings. Confirm `codex login status` locally first.
+- Want to leave the browser: wait for the job ID, keep the host/runtime online,
+  then reconnect and query results. See [background operation](BACKGROUND.md).

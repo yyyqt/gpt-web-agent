@@ -2,7 +2,28 @@
 
 Date: 2026-09-22. Local platform: macOS arm64, Node.js 22.22.3, npm 10.9.8.
 
-## Verified locally
+## Version 0.2 validation
+
+- 15 local automated tests pass, including HTTP disconnect/reconnect while a job
+  continues, saved result reload, interrupted-state recovery, configurable limits,
+  missing Codex executable errors, and stdin prompt handling without shell expansion.
+- ChatGPT refreshed the private connection and discovered `start_codex` and
+  `list_commands`, plus the configured 7200-second limit.
+- In a new ChatGPT web Work conversation, the model called `workspace_info`,
+  confirmed Codex was enabled, invoked `start_codex` once and returned its job ID.
+- The acceptance browser tab was then closed. At closure the local job was still
+  running and RESULT.md did not exist. It completed more than a minute after tab
+  closure with exit 0. No browser was driving the Codex task during that interval.
+- Real installed Codex CLI (existing ChatGPT login, workspace-write sandbox) ran a
+  delayed synthetic task: created subtraction bug, observed assertion exit 1,
+  fixed addition, reran exit 0 and wrote a result report. Captured CLI execution
+  output includes both the failed assertion and passing result.
+- Independent host rerun of the resulting Node test passed.
+- This proves dispatched local Codex work can finish after its browser tab closes.
+  It does not prove all ordinary ChatGPT cloud turns continue after tab closure,
+  nor survival across host sleep/reboot/runtime shutdown.
+
+## Original 0.1 validation (historical)
 
 - `npm run check`: **11/11 tests passed**.
 - Real SDK clients initialized both stdio and Streamable HTTP transports,
@@ -22,7 +43,7 @@ One initial HTTP Host-header test failed because Node fetch did not transmit the
 requested Host override. The test now uses node:http to send the actual header;
 server rejection passed. No transport protection was removed to satisfy the test.
 
-## Verified in ChatGPT web
+## Original 0.1 ChatGPT web validation (historical)
 
 - Developer mode enabled with user approval; a private official MCP tunnel was
   created and confirmed in the Platform UI.
@@ -53,10 +74,10 @@ claim of production reliability or a long-duration soak test.
 ## Not verified / not provided
 
 - Hosted public OAuth endpoint or ChatGPT plugin store distribution.
-- Windows/WSL operation; Linux CI execution (workflow provided, not run remotely).
+- Windows/WSL operation. Previous 0.1 GitHub CI passed Linux/macOS with Node 22/24.
 - Isolation against hostile local processes, a kernel sandbox, or an independent
   security audit.
-- Long-running autonomous model execution, browser/SSH/database integrations.
+- Day-long soak tests, reboot-resuming execution, browser/SSH/database integrations.
 - Cross-client/account permission isolation; this runtime is single-user.
 
 Source is published at https://github.com/yyyqt/gpt-web-agent .

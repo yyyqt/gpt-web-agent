@@ -115,3 +115,47 @@ test('shutdown racing an in-flight start cannot create a surviving command', asy
   await assert.rejects(starting, code('SHUTTING_DOWN'));
   assert.equal(r.jobs.size, 0);
 });
+
+test('configured limits enforce runtime boundaries and results survive restart', async t => {
+  assert.throws(() => new Runtime('/tmp', { limits: { concurrency: 0 } }), code('INVALID_LIMIT'));
+  const r = await fixture(t, { allowHostExec: true, limits: { concurrency: 1, timeoutSeconds: 3600, fileBytes: 2097152, outputBytes: 262144 } });
+  await r.write({ path: 'large.txt', content: 'x'.repeat(1100000), expectedSha256: null });
+  const j = await r.startJob({ command: 'printf persisted', timeoutSeconds: 1200 });
+  await r.jobs.get(j.id).done;
+  await r.close();
+  const next = new Runtime(r.root); await next.init();
+  assert.equal(next.job(j.id).stdout, 'persisted');
+  assert.equal(next.listJobs()[0].status, 'succeeded');
+  assert.equal((await fs.stat(path.join(r.state, `job-${j.id}.json`))).mode & 0o777, 0o600);
+  await assert.rejects(r.startJob({ command: 'true', timeoutSeconds: 3601 }), code('INVALID_TIMEOUT'));
+  await next.close();
+});
+
+test('Codex delegation uses stdin, workspace sandbox and explicit opt-in', async t => {
+  const r = await fixture(t, { allowCodex: true });
+  const fake = path.join(r.root, 'fake-codex');
+  await fs.writeFile(fake, '#!/bin/sh\nprintf "%s\\n" "$@"\ncat\n', { mode: 0o700 });
+  r.codexBinary = fake;
+  const prompt = 'Do not execute $(touch injected) or `touch injected2`';
+  const j = await r.startCodex({ prompt }); await r.jobs.get(j.id).done;
+  assert.equal(r.job(j.id).status, 'succeeded');
+  assert.match(r.job(j.id).stdout, /--sandbox\nworkspace-write/);
+  assert.ok(r.job(j.id).stdout.endsWith(prompt));
+  await assert.rejects(fs.stat(path.join(r.root, 'injected')), { code: 'ENOENT' });
+  await assert.rejects(r.startJob({ command: 'true' }), code('EXEC_DISABLED'));
+  const off = await fixture(t); await assert.rejects(off.startCodex({ prompt: 'hi' }), code('CODEX_DISABLED'));
+  r.codexBinary = path.join(r.root, 'absent');
+  const bad = await r.startCodex({ prompt: 'hi' }); await r.jobs.get(bad.id).done;
+  assert.equal(r.job(bad.id).status, 'failed');
+});
+
+test('unfinished saved jobs recover as interrupted, never rerun or signal stale PIDs', async t => {
+  const r = await fixture(t, { allowHostExec: true });
+  const j = await r.startJob({ command: 'printf done' }); await r.jobs.get(j.id).done; await r.close();
+  const p = path.join(r.state, `job-${j.id}.json`);
+  const saved = JSON.parse(await fs.readFile(p, 'utf8')); saved.status = 'running'; await fs.writeFile(p, JSON.stringify(saved));
+  const next = new Runtime(r.root); await next.init();
+  assert.equal(next.job(j.id).status, 'interrupted');
+  assert.match(next.job(j.id).recoveryNote, /No automatic retry/);
+  next.stopJob(j.id); await next.close();
+});

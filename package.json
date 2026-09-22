@@ -1,6 +1,6 @@
 {
   "name": "gpt-web-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A local MCP tool runtime for browser-based AI agents. No model proxy or inference API required by the runtime.",
   "type": "module",
   "license": "MIT",

@@ -5,7 +5,7 @@
 Give a browser-based AI assistant tools to work on a real local project: read code,
 edit files, run tests, inspect failures, and keep task checkpoints.
 
-**Status: experimental 0.1.0.** Local MCP integration tests and a live ChatGPT web
+**Status: experimental 0.2.0.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
@@ -79,21 +79,43 @@ access-controlled private tunnel; all trusted local clients share this workspace
 | `start_command` | Start an opted-in host command, return a job ID |
 | `get_command` | Inspect bounded output and final exit status |
 | `cancel_command` | Kill the command process group |
+| `list_commands` | Find retained jobs after reconnecting |
+| `start_codex` | Opt-in local Codex task with existing login and workspace-write sandbox |
 
 `--read-only` removes write/task-save/shell tools. Runtime metadata still writes
 to `.web-agent/`. File tools deny parent traversal, secret-like names, `.git`,
 symlinks and hard-linked files. Secret detection is deliberately incomplete.
 
-Limits: 1 MiB UTF-8 files; 128 KiB combined stdout/stderr per command; two concurrent
-commands; 600-second maximum command lifetime; 100 retained command results;
-100 task records; 2,000 visited entries per search. Truncation and skipped search
-files are returned explicitly. Shell stdin is closed; interactive programs/PTY
-are not supported. Background daemons and detached processes are unsupported.
+## Background tasks and Codex
 
-Tasks survive a server restart; running jobs and their output do not. A task
-checkpoint does not schedule an autonomous model loop. Closing ChatGPT does not
-cause the runtime to keep choosing or starting new tasks. Already started commands
-can finish while the server remains running. Server shutdown cancels active jobs.
+Add `--allow-codex` to expose `start_codex`. Install the official Codex CLI and run
+`codex login` first. Prompts go through stdin to `codex exec --ignore-user-config
+--sandbox workspace-write`; no shell interpolation or bypass flag. The CLI uses
+its existing login and default model, not the global user's MCP/model/hook config.
+Project-level Codex policies can still apply. Codex consumes its own account quota.
+
+```sh
+node src/cli.js --root /absolute/project --allow-host-exec --allow-codex \
+  --max-seconds 7200 --max-output-bytes 1048576 --max-file-bytes 4194304
+```
+
+Wait for a job ID before leaving. Already dispatched shell/Codex jobs run without
+an open browser while the runtime stays alive. Codex executes its own model/tool
+loop. Ordinary ChatGPT cloud-turn completion after tab closure depends on ChatGPT
+and pending approvals; this bridge does not guarantee it or start new ChatGPT turns.
+Keep the host awake and online. See [background operation](docs/BACKGROUND.md).
+
+Completed results (including bounded output) survive restart in local private
+`.web-agent/job-*.json` files. Graceful server shutdown cancels active jobs.
+Unfinished records after a crash are reported as `interrupted`, never blindly
+rerun or killed using stale PIDs. This is result persistence, not reboot recovery.
+
+Limits are configurable: `--max-seconds` (default 600, up to 86400),
+`--max-concurrent` (2, up to 16), `--max-output-bytes` (131072, up to 16777216),
+`--max-file-bytes` (1048576, up to 16777216). Both job types share concurrency.
+Keep two jobs unless parallel changes are isolated. Retention: 100 job results,
+100 task checkpoints; search visits at most 2000 entries. Truncation is explicit.
+PTYs, daemonized child processes, scheduling, browser and SSH modules are not provided.
 
 ## Verify the first real workflow
 

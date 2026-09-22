@@ -22,7 +22,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function exercise(client, root) {
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 10);
+  assert.equal(tools.length, 11);
   assert.equal(tools.find(t => t.name === 'start_command').annotations.readOnlyHint, false);
   const info = data(await client.callTool({ name: 'workspace_info', arguments: {} }));
   assert.equal(info.sandboxed, false); assert.equal(info.hostExecution, true);
@@ -93,4 +93,29 @@ test('HTTP MCP: real tool loop plus Origin/Host/JSON rejection', async t => {
   t.after(() => client.close());
   await client.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp')));
   await exercise(client, root);
+});
+
+test('HTTP client disconnect does not stop dispatched job; reconnect can retrieve it', async t => {
+  const root = await workspace(t);
+  const probe = net.createServer(); probe.listen(0, '127.0.0.1'); await once(probe, 'listening');
+  const port = probe.address().port; await new Promise(resolve => probe.close(resolve));
+  const child = spawn(process.execPath, [cli, '--root', root, '--transport', 'http', '--port', String(port), '--allow-host-exec', '--allow-codex', '--max-seconds', '7200'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  child.stderr.resume();
+  t.after(async () => { if (child.exitCode === null) { const stopped = once(child, 'exit'); child.kill('SIGTERM'); await stopped; } });
+  const base = `http://127.0.0.1:${port}`;
+  for (let i = 0; i < 100; i++) { try { if ((await fetch(base + '/health')).ok) break; } catch {} await sleep(30); }
+  const connect = async () => { const c = new Client({ name: 'reconnect-test', version: '1' }); await c.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp'))); return c; };
+  const first = await connect();
+  const names = (await first.listTools()).tools.map(t => t.name);
+  assert.ok(names.includes('start_codex'));
+  const info = data(await first.callTool({ name: 'workspace_info', arguments: {} }));
+  assert.equal(info.maxCommandSeconds, 7200);
+  const job = data(await first.callTool({ name: 'start_command', arguments: { command: 'sleep 1; printf survived > survived.txt' } }));
+  await first.close();
+  await sleep(1200);
+  const second = await connect(); t.after(() => second.close());
+  const result = data(await second.callTool({ name: 'get_command', arguments: { id: job.id } }));
+  assert.equal(result.status, 'succeeded'); assert.equal(result.exitCode, 0);
+  assert.equal(await fs.readFile(path.join(root, 'survived.txt'), 'utf8'), 'survived');
+  assert.ok(data(await second.callTool({ name: 'list_commands', arguments: {} })).jobs.some(j => j.id === job.id));
 });
