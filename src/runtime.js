@@ -16,8 +16,10 @@ export class BridgeError extends Error {
 const fail = (code, message) => { throw new BridgeError(code, message); };
 
 export class Runtime {
-  constructor(root, { allowHostExec = false, allowCodex = false, codexBinary = 'codex', readOnly = false, limits = {} } = {}) {
+  constructor(root, { allowHostExec = false, allowCodex = false, codexBinary = 'codex', readOnly = false, allowAbsolutePaths = false, stateDirectory, limits = {} } = {}) {
     this.root = root;
+    this.allowAbsolutePaths = allowAbsolutePaths;
+    this.stateDirectory = stateDirectory;
     this.allowHostExec = allowHostExec && !readOnly;
     this.readOnly = readOnly;
     this.allowCodex = allowCodex && !readOnly;
@@ -34,7 +36,7 @@ export class Runtime {
   async init() {
     this.root = await fs.realpath(this.root);
     if (!(await fs.stat(this.root)).isDirectory()) fail('NOT_DIRECTORY', 'Workspace must be a directory');
-    this.state = path.join(this.root, '.web-agent');
+    this.state = this.stateDirectory || path.join(this.root, '.web-agent');
     try {
       const st = await fs.lstat(this.state);
       if (st.isSymbolicLink() || !st.isDirectory()) fail('UNSAFE_STATE', '.web-agent must be a real directory');
@@ -59,12 +61,15 @@ export class Runtime {
   }
   writable() { if (this.readOnly) fail('READ_ONLY', 'Server was started in read-only mode'); }
   async resolve(relative = '.', { missing = false } = {}) {
-    if (typeof relative !== 'string' || relative.includes('\0') || path.isAbsolute(relative) || relative.includes('\\')) {
+    if (typeof relative !== 'string' || relative.includes('\0') || (path.isAbsolute(relative) && !this.allowAbsolutePaths) || relative.includes('\\')) {
       fail('INVALID_PATH', 'Use a relative POSIX path inside the workspace');
     }
+    const base = this.allowAbsolutePaths && path.isAbsolute(relative) ? path.parse(relative).root : this.root;
     const parts = relative.split('/').filter(p => p && p !== '.');
     if (parts.some(p => p === '..' || PRIVATE.test(p))) fail('PATH_DENIED', 'Parent traversal and private paths are not exposed');
-    let resolved = this.root;
+    const target = path.join(base, ...parts);
+    if (this.state && (target === this.state || target.startsWith(this.state + path.sep))) fail('PATH_DENIED', 'Runtime state is not exposed through file tools');
+    let resolved = base;
     for (let i = 0; i < parts.length; i++) {
       resolved = path.join(resolved, parts[i]);
       try {
@@ -72,7 +77,7 @@ export class Runtime {
         if (st.isSymbolicLink()) fail('SYMLINK_DENIED', 'Symbolic links are not followed');
         if (i < parts.length - 1 && !st.isDirectory()) fail('NOT_DIRECTORY', 'A parent path is not a directory');
       } catch (e) {
-        if (e.code === 'ENOENT' && missing) return path.join(this.root, ...parts);
+        if (e.code === 'ENOENT' && missing) return path.join(base, ...parts);
         throw e;
       }
     }
@@ -95,7 +100,7 @@ export class Runtime {
   async list({ directory = '.', limit = 200 } = {}) {
     const p = await this.resolve(directory);
     const entries = await fs.readdir(p, { withFileTypes: true });
-    const visible = entries.filter(e => !PRIVATE.test(e.name) && !e.isSymbolicLink()).sort((a, b) => a.name.localeCompare(b.name));
+    const visible = entries.filter(e => path.join(p, e.name) !== this.state && !PRIVATE.test(e.name) && !e.isSymbolicLink()).sort((a, b) => a.name.localeCompare(b.name));
     return { entries: visible.slice(0, limit).map(e => ({ name: e.name, type: e.isDirectory() ? 'directory' : e.isFile() ? 'file' : 'other' })), truncated: visible.length > limit };
   }
   async write({ path: relative, content, expectedSha256 }) {
@@ -174,8 +179,9 @@ export class Runtime {
     const hits = [], skipped = [];
     let examined = 0, truncated = false;
     const walk = async dir => {
-      for (const e of await fs.readdir(await this.resolve(dir), { withFileTypes: true })) {
-        if (PRIVATE.test(e.name) || ['node_modules', 'vendor', 'dist', 'coverage'].includes(e.name) || e.isSymbolicLink()) continue;
+      const resolvedDir = await this.resolve(dir);
+      for (const e of await fs.readdir(resolvedDir, { withFileTypes: true })) {
+        if (path.join(resolvedDir, e.name) === this.state || PRIVATE.test(e.name) || ['node_modules', 'vendor', 'dist', 'coverage'].includes(e.name) || e.isSymbolicLink()) continue;
         if (examined >= 2000 || hits.length >= limit) { truncated = true; return; }
         const relative = path.posix.join(dir, e.name);
         examined++;

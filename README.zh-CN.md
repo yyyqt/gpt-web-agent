@@ -1,5 +1,10 @@
 # GPT Web Agent
 
+## 本机路径模式（0.5.0）
+
+使用 `node src/cli.js --dynamic-projects --allow-host-exec`，不再固定项目，也不需要登记或切换项目。正常描述任务，网页模型根据上下文自行查找和判断路径。文件、目录、图片目标和命令 `cwd` 支持绝对路径；相对路径以 `workspace_info` 返回的用户主目录为基准。没有每次必传的项目参数，也没有跨聊天共享的“当前项目”。所有命令共享并发上限。文件工具仍拒绝密钥文件名、父级跳转和符号链接；Shell 仍使用当前系统用户权限。状态保存在 `~/Library/Application Support/gpt-web-agent/local-state`；旧项目内的记录保留，可用旧 `--root` 模式查看。原固定目录模式继续兼容。
+
+
 [English](README.md)
 
 让 ChatGPT 网页通过 MCP，直接读取本机项目、修改代码、执行测试、查看错误并继续修正。

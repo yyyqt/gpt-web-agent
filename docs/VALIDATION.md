@@ -134,3 +134,7 @@ SHA-256: `3dde2021814af40e9120a5e27bba177348d9684a7c209b950b4078e34c6c1e22`.
 The local file was visually inspected and its digest matched the tool response.
 21 automated tests pass, including exact-host acceptance, untrusted Azure account
 and lookalike-host rejection, signed-query redaction, and real PNG decoding/import.
+
+## 0.5.0 local paths mode
+
+`npm run check`: 22 tests pass. New MCP transport integration verifies that no project parameter or switching tool is required, relative paths use the reported home directory, absolute paths read/write/patch/search two independent directories, commands run in their own cwd and share one concurrency cap. Private files, runtime state, parent traversal and symlinks remain rejected. Existing fixed-root tests still pass. Local tunnel configured with `--dynamic-projects`; no business project code was changed for this upgrade. ChatGPT tool refresh and live verification are recorded separately below.

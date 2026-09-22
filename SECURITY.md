@@ -5,7 +5,7 @@ a multi-tenant hosted execution service.
 
 ## Boundaries
 
-- File tools accept relative paths under one configured real directory; reject
+- In fixed-root mode, file tools accept relative paths under one configured real directory; reject
   traversal, symbolic links, hard-linked files and common secret-like names.
 - These checks prevent straightforward path escapes. They do not provide a
   race-free kernel filesystem sandbox. A hostile process with write access to
@@ -68,3 +68,7 @@ it does not accept arbitrary network URLs or access browser credentials. Image
 bytes are bounded and completely decoded before writing. Decoder dependencies
 must stay patched. Original image metadata is retained. File references and signed
 URLs are untrusted input, not authorization to modify a different path or project.
+
+## Optional local paths mode
+
+`--dynamic-projects` permits absolute paths outside any one project using the OS user permissions. The home directory is a relative-path base, not an access boundary. Existing private-name, traversal, symlink and hardlink checks remain; they are not a sandbox. File tools may now reach non-secret files across projects. Shell already had host-wide permissions. No mutable current-project setting is shared across conversations.

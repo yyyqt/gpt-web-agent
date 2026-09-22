@@ -1,5 +1,10 @@
 # GPT Web Agent
 
+## Local paths mode (0.5.0)
+
+Start with `node src/cli.js --dynamic-projects --allow-host-exec` to let the web model discover and work on local projects without registering or switching them. File paths, directory paths, image destinations and command `cwd` accept absolute paths; relative paths use the home directory reported by `workspace_info`. There is no per-call project parameter or mutable global project. All commands share the concurrency limit. Private file names, parent traversal and symlinks remain excluded by file tools; host shell is still unsandboxed. State lives in `~/Library/Application Support/gpt-web-agent/local-state` (also on Linux in this release); previous fixed-root state is left intact and can be inspected using the old `--root` mode. Existing `--root` mode remains supported.
+
+
 [中文说明](README.zh-CN.md)
 
 Give a browser-based AI assistant tools to work on a real local project: read code,

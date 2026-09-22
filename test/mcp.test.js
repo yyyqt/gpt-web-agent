@@ -126,3 +126,38 @@ test('HTTP client disconnect does not stop dispatched job; reconnect can retriev
   assert.equal(await fs.readFile(path.join(root, 'survived.txt'), 'utf8'), 'survived');
   assert.ok(data(await second.callTool({ name: 'list_commands', arguments: {} })).jobs.some(j => j.id === job.id));
 });
+
+test('local paths mode: no project parameter or switch; files, patches, cwd and jobs across directories', async t => {
+  const home = await fs.realpath(await workspace(t));
+  const a = await fs.realpath(await workspace(t)), b = await fs.realpath(await workspace(t));
+  const client = new Client({ name: 'local-paths-test', version: '1' });
+  t.after(() => client.close());
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli, '--dynamic-projects', '--allow-host-exec', '--max-concurrent', '1'], env: { ...process.env, HOME: home }, stderr: 'pipe' }));
+  const tools = (await client.listTools()).tools;
+  assert.ok(tools.every(tool => !tool.inputSchema.properties.projectRoot));
+  assert.deepEqual(tools.find(t => t.name === 'import_image')._meta['openai/fileParams'], ['file']);
+  const call = async (name, args = {}) => data(await client.callTool({ name, arguments: args }));
+  const info = await call('workspace_info');
+  assert.equal(info.workspace, home); assert.equal(info.fixedProject, false); assert.equal(info.absolutePaths, true);
+  for (const [dir, content] of [[a, 'A'], [b, 'B']]) await call('write_file', { path: path.join(dir, 'same.txt'), content, expectedSha256: null });
+  const before = await call('read_file', { path: path.join(a, 'same.txt') });
+  await call('patch_file', { path: path.join(a, 'same.txt'), expectedSha256: before.sha256, edits: [{ oldText: 'A', newText: 'AA' }] });
+  assert.equal((await call('read_file', { path: path.join(b, 'same.txt') })).content, 'B');
+  assert.equal((await call('read_file', { path: path.join(a, 'same.txt') })).content, 'AA');
+  await call('write_file', { path: 'relative.txt', content: 'home', expectedSha256: null });
+  assert.equal(await fs.readFile(path.join(home, 'relative.txt'), 'utf8'), 'home');
+  assert.ok((await call('list_files', { directory: b })).entries.some(e => e.name === 'same.txt'));
+  assert.equal((await call('search_text', { directory: b, query: 'B' })).hits.length, 1);
+  await fs.symlink(b, path.join(a, 'link'));
+  for (const target of [path.join(home, 'Library/Application Support/gpt-web-agent/local-state/audit.jsonl'), path.join(a, '.env'), path.join(a, 'link', 'same.txt'), a + '/../escape']) assert.equal((await client.callTool({ name: 'read_file', arguments: { path: target } })).isError, true);
+  const first = await call('start_command', { cwd: a, command: 'sleep 1; pwd' });
+  const second = await call('start_command', { cwd: b, command: 'pwd' });
+  assert.equal(first.status, 'running'); assert.equal(second.status, 'queued');
+  for (let i = 0; i < 100; i++) {
+    if ((await call('get_command', { id: second.id })).status === 'succeeded') break;
+    await sleep(25);
+  }
+  assert.equal((await call('get_command', { id: first.id })).stdout.trim(), a);
+  assert.equal((await call('get_command', { id: second.id })).stdout.trim(), b);
+  assert.equal((await call('list_commands')).jobs.length, 2);
+});

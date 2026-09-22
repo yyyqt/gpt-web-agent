@@ -5,10 +5,12 @@ import { createServer as createHttpServer } from 'node:http';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Runtime } from './runtime.js';
+import os from 'node:os';
 import { createServer } from './server.js';
 
-const HELP = `gpt-web-agent 0.4.1
-Usage: gpt-web-agent --root /absolute/workspace [options]
+const HELP = `gpt-web-agent 0.5.0
+Usage: gpt-web-agent (--dynamic-projects | --root /absolute/workspace) [options]
+  --dynamic-projects    No fixed project; allow local paths, default relative base is home.
   --transport stdio|http  Default: stdio. HTTP binds ONLY to 127.0.0.1.
   --port 8788            Local HTTP port (1024-65535).
   --read-only            Expose no file/task mutations or command tools.
@@ -22,7 +24,8 @@ Usage: gpt-web-agent --root /absolute/workspace [options]
   --help                 Show this help.
 
 Default: file read/write and task checkpoints, shell disabled.
-State/audit metadata is written to ROOT/.web-agent even in read-only mode.
+State/audit metadata is written even in read-only mode: ROOT/.web-agent in fixed
+mode; ~/Library/Application Support/gpt-web-agent/local-state in dynamic mode.
 HTTP is for a trusted local tunnel/client ONLY; never publicly forward it
 without an authenticating gateway. Prefer the official Secure MCP Tunnel.
 The bridge does not call model APIs or extract browser session tokens.
@@ -32,13 +35,14 @@ let runtime, http;
 const servers = new Set();
 async function main() {
   const { values } = parseArgs({ options: {
-    root: { type: 'string' }, transport: { type: 'string', default: 'stdio' },
+    root: { type: 'string' }, 'dynamic-projects': { type: 'boolean' }, transport: { type: 'string', default: 'stdio' },
     port: { type: 'string', default: '8788' }, 'read-only': { type: 'boolean' },
     'allow-host-exec': { type: 'boolean' }, 'allow-codex': { type: 'boolean' }, 'codex-bin': { type: 'string' },
     'max-seconds': { type: 'string' }, 'max-concurrent': { type: 'string' }, 'max-output-bytes': { type: 'string' }, 'max-file-bytes': { type: 'string' }, help: { type: 'boolean' }
   }, allowPositionals: false });
   if (values.help) { process.stdout.write(HELP); return; }
-  if (!values.root || !path.isAbsolute(values.root)) throw new Error('--root must be an explicit absolute directory');
+  if (values['dynamic-projects'] && values.root) throw new Error('--dynamic-projects and --root are mutually exclusive');
+  if (!values['dynamic-projects'] && (!values.root || !path.isAbsolute(values.root))) throw new Error('--root must be an explicit absolute directory');
   if (!['stdio', 'http'].includes(values.transport)) throw new Error('--transport must be stdio or http');
   if (values['read-only'] && (values['allow-host-exec'] || values['allow-codex'])) throw new Error('--read-only conflicts with execution options');
   if ((values['allow-host-exec'] || values['allow-codex']) && process.platform === 'win32') throw new Error('Host execution requires macOS/Linux; use WSL on Windows');
@@ -46,7 +50,10 @@ async function main() {
   for (const [flag, key] of Object.entries({ 'max-seconds': 'timeoutSeconds', 'max-concurrent': 'concurrency', 'max-output-bytes': 'outputBytes', 'max-file-bytes': 'fileBytes' })) {
     if (values[flag] !== undefined) { if (!/^\d+$/.test(values[flag])) throw new Error(`--${flag} must be an integer`); limits[key] = Number(values[flag]); }
   }
-  runtime = new Runtime(values.root, { readOnly: !!values['read-only'], allowHostExec: !!values['allow-host-exec'], allowCodex: !!values['allow-codex'], codexBinary: values['codex-bin'] || 'codex', limits });
+  const options = { readOnly: !!values['read-only'], allowHostExec: !!values['allow-host-exec'], allowCodex: !!values['allow-codex'], codexBinary: values['codex-bin'] || 'codex', limits };
+  runtime = values['dynamic-projects']
+    ? new Runtime(os.homedir(), { ...options, allowAbsolutePaths: true, stateDirectory: path.join(os.homedir(), 'Library', 'Application Support', 'gpt-web-agent', 'local-state') })
+    : new Runtime(values.root, options);
   await runtime.init();
   if (runtime.allowHostExec) process.stderr.write('Host shell ENABLED: commands run with your OS user permissions. No sandbox.\n');
   if (values.transport === 'stdio') {
