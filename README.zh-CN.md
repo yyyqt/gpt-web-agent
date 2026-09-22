@@ -1,15 +1,30 @@
 # GPT Web Agent
 
-## 本机路径模式（0.5.0）
+让 ChatGPT 网页直接操作你电脑上的项目：读代码、修改文件、运行测试，也能把网页生成的图片保存到本地。
 
-使用 `node src/cli.js --dynamic-projects --allow-host-exec`，不再固定项目，也不需要登记或切换项目。正常描述任务，网页模型根据上下文自行查找和判断路径。文件、目录、图片目标和命令 `cwd` 支持绝对路径；相对路径以 `workspace_info` 返回的用户主目录为基准。没有每次必传的项目参数，也没有跨聊天共享的“当前项目”。所有命令共享并发上限。文件工具仍拒绝密钥文件名、父级跳转和符号链接；Shell 仍使用当前系统用户权限。状态保存在 `~/Library/Application Support/gpt-web-agent/local-state`；旧项目内的记录保留，可用旧 `--root` 模式查看。原固定目录模式继续兼容。
+**第一次使用：[从零安装、连接 ChatGPT、验收到日常使用 →](docs/GETTING-STARTED.zh-CN.md)**
 
+[English](README.md) · [连接故障排查](docs/CHATGPT.md) · [验证记录](docs/VALIDATION.md)
 
-[English](README.md)
+## 我该怎么开始？
 
-让 ChatGPT 网页通过 MCP，直接读取本机项目、修改代码、执行测试、查看错误并继续修正。
+1. 在自己的电脑下载源码，安装依赖。
+2. 用自己的 OpenAI 账户创建私有隧道，启动本地服务。
+3. 在自己的 ChatGPT 里添加这个连接，然后正常聊天。
 
-**当前为实验版 0.4.1。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
+每一步的命令、页面入口和成功标志都在上面的完整教程里。**仅下载仓库或执行 npm install 不会自动连接 ChatGPT。**
+
+完成后可以说：“看看 XXX 项目有什么优化空间”，接着说“修复第一个问题并测试”。不绑定具体项目，不要求每次输入绝对路径，也不用先切换项目，GPT 根据上下文自行判断和查找。默认由网页直接执行，Codex 委托是可选功能。
+
+**当前实验版 0.5.0，源码自部署。** 尚未发布到 npm 或 ChatGPT 插件商店。朋友需要各自安装、使用自己的隧道和凭据；不需要连接作者的电脑。能否连接取决于各自账户的开发者模式及私有隧道权限。
+
+## 连接关系
+
+```text
+你的 ChatGPT 网页 → 你的私有隧道 → 你电脑上的 GPT Web Agent → 你的本地文件和命令
+```
+
+以下是功能和技术参考；首次使用请先完成[上手教程](docs/GETTING-STARTED.zh-CN.md)。
 
 ## 它负责什么
 

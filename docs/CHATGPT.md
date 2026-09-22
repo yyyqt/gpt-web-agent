@@ -1,5 +1,7 @@
 # Connect ChatGPT web
 
+First-time users: [complete Chinese walkthrough](GETTING-STARTED.zh-CN.md). This page is the connection reference.
+
 This guide follows official documentation checked on 2026-09-22. UI labels,
 account eligibility and organization permissions can change. Read:
 
@@ -52,8 +54,8 @@ wrapper script with a fixed command can avoid nested quoting.
    at the MCP application layer: access is authenticated by the private tunnel and
    its organization/workspace permissions. This is not permission to expose an
    unauthenticated public endpoint.
-9. Inspect discovered tools. With `--allow-host-exec`, this version exposes 11
-   tools; adding `--allow-codex` exposes 12. Codex-only exposes 11. Without either execution flag it exposes 7; with `--read-only`, 5.
+9. Inspect discovered tools. With `--allow-host-exec`, this version exposes 14
+   tools; adding `--allow-codex` exposes 15. Codex-only exposes 14. Without either execution flag it exposes 9; with `--read-only`, 5.
 10. Start a new chat, attach the connection, and use the
     [acceptance prompt](../examples/acceptance-prompt.md). Keep write confirmations.
 11. Check the actual generated files and command exit status on the host before
