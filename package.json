@@ -1,0 +1,33 @@
+{
+  "name": "web-agent-bridge",
+  "version": "0.1.0",
+  "description": "A local MCP tool runtime for browser-based AI agents. No model proxy or inference API required by the runtime.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "web-agent-bridge": "src/cli.js"
+  },
+  "files": [
+    "src",
+    "docs",
+    "examples",
+    "README.md",
+    "README.zh-CN.md",
+    "SECURITY.md",
+    "LICENSE",
+    "test",
+    "CONTRIBUTING.md"
+  ],
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/cli.js && node --check src/runtime.js && node --check src/server.js && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.6.5"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "web-agent-bridge": {
+      "command": "node",
+      "args": [
+        "/ABSOLUTE/PATH/web-agent-bridge/src/cli.js",
+        "--root",
+        "/ABSOLUTE/PATH/demo",
+        "--allow-host-exec"
+      ]
+    }
+  }
+}

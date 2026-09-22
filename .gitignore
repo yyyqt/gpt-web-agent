@@ -1,0 +1,8 @@
+node_modules/
+.web-agent/
+.env
+.env.*
+*.log
+*.tgz
+.DS_Store
+coverage/
