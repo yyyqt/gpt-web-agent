@@ -6,7 +6,7 @@ import os from 'node:os';
 
 export const DEFAULT_LIMITS = { fileBytes: 1048576, outputBytes: 131072, concurrency: 2, timeoutSeconds: 600 };
 const LIMIT_RANGES = { fileBytes: [1024, 16777216], outputBytes: [1024, 16777216], concurrency: [1, 16], timeoutSeconds: [1, 86400] };
-const PRIVATE = /^(?:\.web-agent|\.git|\.ssh|\.aws|\.gnupg|\.npmrc|\.netrc|\.env(?:\..*)?|.*\.(?:pem|key|p12))$/i;
+const PRIVATE = /^(?:\.web-agent|\.git|\.dev\.vars(?:\..*)?|\.wrangler|\.codex|\.claude|\.ssh|\.aws|\.gnupg|\.npmrc|\.netrc|\.env(?:\..*)?|.*\.(?:pem|key|p12))$/i;
 const hash = data => createHash('sha256').update(data).digest('hex');
 export class BridgeError extends Error {
   constructor(code, message) { super(message); this.code = code; }

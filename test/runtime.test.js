@@ -28,7 +28,7 @@ test('conflict-safe create, edit, concurrent writes and restart persistence', as
 
 test('denies traversal, private files, symlink escapes, hardlinks and binary data', async t => {
   const r = await fixture(t);
-  for (const p of ['../escape', 'a/../../escape', '.env', '.env.local', 'a/.git/config', '.web-agent/tasks.json', 'a/key.pem']) {
+  for (const p of ['../escape', 'a/../../escape', '.env', '.env.local', '.dev.vars', '.dev.vars.production', '.wrangler/state/db', '.codex/auth.json', 'a/.git/config', '.web-agent/tasks.json', 'a/key.pem']) {
     await assert.rejects(r.resolve(p, { missing: true }), code('PATH_DENIED'));
   }
   for (const p of ['/etc/passwd', 'a\\b', 'a\0b']) await assert.rejects(r.resolve(p), code('INVALID_PATH'));
