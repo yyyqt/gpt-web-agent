@@ -83,13 +83,23 @@ test('command success, failure, environment isolation, timeout, cancellation, bo
   assert.equal(r.job(good.id).status, 'succeeded'); assert.equal(r.job(good.id).stdout, 'ok');
 });
 
-test('concurrent command cap and shutdown cleanup', async t => {
-  const r = await fixture(t, { allowHostExec: true });
-  const results = await Promise.allSettled([1, 2, 3].map(() => r.startJob({ command: 'sleep 30' })));
-  assert.equal(results.filter(r => r.status === 'fulfilled').length, 2);
-  assert.equal(results.find(r => r.status === 'rejected').reason.code, 'BUSY');
+test('concurrent cap, FIFO queue, cancellation and shutdown cleanup', async t => {
+  const r = await fixture(t, { allowHostExec: true, limits: { concurrency: 1 } });
+  const first = await r.startJob({ command: 'sleep 30' });
+  const second = await r.startJob({ command: 'printf second' });
+  const third = await r.startJob({ command: 'printf third' });
+  assert.equal(r.job(first.id).status, 'running');
+  assert.equal(r.job(second.id).status, 'queued');
+  r.stopJob(first.id);
+  await r.jobs.get(second.id).done; await r.jobs.get(third.id).done;
+  assert.equal(r.job(second.id).stdout, 'second');
+  assert.equal(r.job(third.id).stdout, 'third');
+  const fourth = await r.startJob({ command: 'sleep 30' });
+  const fifth = await r.startJob({ command: 'touch must-not-run' });
   await r.close();
-  assert.ok([...r.jobs.values()].every(j => j.status === 'cancelled'));
+  assert.equal(r.job(fourth.id).status, 'cancelled');
+  assert.equal(r.job(fifth.id).status, 'cancelled');
+  await assert.rejects(fs.stat(path.join(r.root, 'must-not-run')), { code: 'ENOENT' });
 });
 
 test('audit contains metadata only, unsafe state and corruption are explicit errors', async t => {
@@ -136,8 +146,9 @@ test('Codex delegation uses stdin, workspace sandbox and explicit opt-in', async
   const fake = path.join(r.root, 'fake-codex');
   await fs.writeFile(fake, '#!/bin/sh\nprintf "%s\\n" "$@"\ncat\n', { mode: 0o700 });
   r.codexBinary = fake;
+  await assert.rejects(r.startCodex({ prompt: 'not authorized' }), code('DELEGATION_NOT_REQUESTED'));
   const prompt = 'Do not execute $(touch injected) or `touch injected2`';
-  const j = await r.startCodex({ prompt }); await r.jobs.get(j.id).done;
+  const j = await r.startCodex({ prompt, userRequestedDelegation: true }); await r.jobs.get(j.id).done;
   assert.equal(r.job(j.id).status, 'succeeded');
   assert.match(r.job(j.id).stdout, /--sandbox\nworkspace-write/);
   assert.ok(r.job(j.id).stdout.endsWith(prompt));
@@ -145,7 +156,7 @@ test('Codex delegation uses stdin, workspace sandbox and explicit opt-in', async
   await assert.rejects(r.startJob({ command: 'true' }), code('EXEC_DISABLED'));
   const off = await fixture(t); await assert.rejects(off.startCodex({ prompt: 'hi' }), code('CODEX_DISABLED'));
   r.codexBinary = path.join(r.root, 'absent');
-  const bad = await r.startCodex({ prompt: 'hi' }); await r.jobs.get(bad.id).done;
+  const bad = await r.startCodex({ prompt: 'hi', userRequestedDelegation: true }); await r.jobs.get(bad.id).done;
   assert.equal(r.job(bad.id).status, 'failed');
 });
 
@@ -158,4 +169,25 @@ test('unfinished saved jobs recover as interrupted, never rerun or signal stale 
   assert.equal(next.job(j.id).status, 'interrupted');
   assert.match(next.job(j.id).recoveryNote, /No automatic retry/);
   next.stopJob(j.id); await next.close();
+});
+
+test('default runs four jobs and queues the fifth; queued cancellation never launches', async t => {
+  const r = await fixture(t, { allowHostExec: true });
+  const jobs = await Promise.all(Array.from({ length: 5 }, () => r.startJob({ command: 'sleep 30' })));
+  assert.equal(jobs.filter(j => j.status === 'running').length, 4);
+  assert.equal(jobs.filter(j => j.status === 'queued').length, 1);
+  const queued = jobs.find(j => j.status === 'queued');
+  r.stopJob(queued.id); await r.jobs.get(queued.id).done;
+  assert.equal(r.job(queued.id).startedAt, null);
+  assert.equal(r.job(queued.id).status, 'cancelled');
+});
+
+test('execution timeout begins on launch, not while queued', async t => {
+  const r = await fixture(t, { allowHostExec: true, limits: { concurrency: 1 } });
+  const first = await r.startJob({ command: 'sleep 1.2', timeoutSeconds: 3 });
+  const second = await r.startJob({ command: 'printf after-wait', timeoutSeconds: 1 });
+  assert.equal(second.status, 'queued');
+  await r.jobs.get(first.id).done; await r.jobs.get(second.id).done;
+  assert.equal(r.job(second.id).status, 'succeeded');
+  assert.equal(r.job(second.id).stdout, 'after-wait');
 });

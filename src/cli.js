@@ -7,7 +7,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { Runtime } from './runtime.js';
 import { createServer } from './server.js';
 
-const HELP = `gpt-web-agent 0.2.0
+const HELP = `gpt-web-agent 0.3.0
 Usage: gpt-web-agent --root /absolute/workspace [options]
   --transport stdio|http  Default: stdio. HTTP binds ONLY to 127.0.0.1.
   --port 8788            Local HTTP port (1024-65535).
@@ -16,7 +16,7 @@ Usage: gpt-web-agent --root /absolute/workspace [options]
   --allow-codex          Enable local Codex tasks using existing login, workspace-write.
   --codex-bin PATH       Codex executable (default: codex from PATH).
   --max-seconds N        Max job lifetime, 1-86400 (default 600).
-  --max-concurrent N     Concurrent jobs, 1-16 (default 2).
+  --max-concurrent N     Concurrent jobs, 1-16 (default 4; excess jobs queue).
   --max-output-bytes N   Combined job output, 1024-16777216 (default 131072).
   --max-file-bytes N     Text file limit, 1024-16777216 (default 1048576).
   --help                 Show this help.

@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 
-export const DEFAULT_LIMITS = { fileBytes: 1048576, outputBytes: 131072, concurrency: 2, timeoutSeconds: 600 };
+export const DEFAULT_LIMITS = { fileBytes: 1048576, outputBytes: 131072, concurrency: 4, timeoutSeconds: 600 };
 const LIMIT_RANGES = { fileBytes: [1024, 16777216], outputBytes: [1024, 16777216], concurrency: [1, 16], timeoutSeconds: [1, 86400] };
 const PRIVATE = /^(?:\.web-agent|\.git|\.dev\.vars(?:\..*)?|\.wrangler|\.codex|\.claude|\.ssh|\.aws|\.gnupg|\.npmrc|\.netrc|\.env(?:\..*)?|.*\.(?:pem|key|p12))$/i;
 const hash = data => createHash('sha256').update(data).digest('hex');
@@ -43,8 +43,8 @@ export class Runtime {
       if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1 || st.size > 128 * 1024 * 1024) fail('UNSAFE_STATE', 'Invalid job state file');
       const job = JSON.parse(await fs.readFile(p, 'utf8'));
       if (name !== `job-${job.id}.json` || typeof job.stdout !== 'string' || typeof job.stderr !== 'string' ||
-          !['running', 'succeeded', 'failed', 'cancelled', 'timed_out', 'interrupted'].includes(job.status)) fail('CORRUPT_STATE', 'Invalid saved job');
-      if (job.status === 'running') { job.status = 'interrupted'; job.recoveryNote = 'Previous runtime ended before recording a final result. No automatic retry; inspect side effects first.'; }
+          !['queued', 'running', 'succeeded', 'failed', 'cancelled', 'timed_out', 'interrupted'].includes(job.status)) fail('CORRUPT_STATE', 'Invalid saved job');
+      if (['queued', 'running'].includes(job.status)) { job.status = 'interrupted'; job.recoveryNote = 'Previous runtime ended before recording a final result. No automatic retry; inspect side effects first.'; }
       this.jobs.set(job.id, job);
     }
     if (this.jobs.size > 100) fail('CORRUPT_STATE', 'Too many saved jobs; inspect .web-agent');
@@ -153,9 +153,10 @@ export class Runtime {
     if (typeof command !== 'string' || !command.length || command.length > 16000) fail('INVALID_COMMAND', 'Command must be 1-16000 characters');
     return this.startProcess({ executable: '/bin/sh', args: ['-c', command], cwd, timeoutSeconds, kind: 'shell' });
   }
-  async startCodex({ prompt, cwd = '.', timeoutSeconds = Math.min(1800, this.limits.timeoutSeconds) }) {
+  async startCodex({ prompt, userRequestedDelegation = false, cwd = '.', timeoutSeconds = Math.min(1800, this.limits.timeoutSeconds) }) {
     this.writable();
     if (!this.allowCodex) fail('CODEX_DISABLED', 'Restart with --allow-codex to enable Codex tasks');
+    if (userRequestedDelegation !== true) fail('DELEGATION_NOT_REQUESTED', 'User must explicitly request Codex delegation; otherwise use file and command tools directly');
     if (typeof prompt !== 'string' || !prompt.length || prompt.length > 32000) fail('INVALID_PROMPT', 'Prompt must be 1-32000 characters');
     // Pass prompts via stdin, never interpolate them into a shell command.
     return this.startProcess({ executable: this.codexBinary,
@@ -169,15 +170,18 @@ export class Runtime {
     const working = await this.resolve(cwd);
     if (!(await fs.stat(working)).isDirectory()) fail('NOT_DIRECTORY', 'cwd must be a directory');
     if (this.closing) fail('SHUTTING_DOWN', 'Runtime is shutting down');
-    // Synchronous reservation after the awaited path checks prevents oversubscription.
-    if ([...this.jobs.values()].filter(j => j.status === 'running').length >= this.limits.concurrency) fail('BUSY', 'Configured concurrent job limit reached');
+    // Jobs share a bounded FIFO queue; a slot is held until the process actually closes.
     if (this.jobs.size >= 100) {
       const finished = [...this.jobs].find(([, j]) => j.status !== 'running' && (j.finishedAt || j.status === 'interrupted'));
+      if (!finished) fail('QUEUE_FULL', 'At most 100 retained or pending jobs; wait for completion');
       if (finished) { this.jobs.delete(finished[0]); this.exclusive(() => fs.rm(path.join(this.state, `job-${finished[0]}.json`), { force: true })).catch(e => process.stderr.write(`Job eviction failed: ${e.message}\n`)); }
     }
     const id = randomUUID();
-    const job = { id, kind, cwd, status: 'running', startedAt: new Date().toISOString(), stdout: '', stderr: '', truncated: false, exitCode: null, signal: null, bytes: 0 };
+    const job = { id, kind, cwd, status: 'queued', queuedAt: new Date().toISOString(), startedAt: null, stdout: '', stderr: '', truncated: false, exitCode: null, signal: null, bytes: 0 };
     this.jobs.set(id, job);
+    job.done = new Promise(resolve => { job.finish = resolve; });
+    job.launch = () => {
+    job.status = 'running'; job.startedAt = new Date().toISOString();
     const env = { PATH: process.env.PATH || '/usr/bin:/bin', HOME: this.root, TMPDIR: process.env.TMPDIR || '/tmp', LANG: 'en_US.UTF-8' };
     if (kind === 'codex') { env.HOME = os.homedir(); if (process.env.CODEX_HOME) env.CODEX_HOME = process.env.CODEX_HOME; }
     const child = spawn(executable, args, { cwd: working, env, detached: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
@@ -192,26 +196,44 @@ export class Runtime {
     };
     child.stdout.on('data', append('stdout'));
     child.stderr.on('data', append('stderr'));
-    job.done = new Promise(resolve => {
       child.once('error', e => { job.stderr += `Spawn failed: ${e.message}`; job.status = 'failed'; });
       child.once('close', async (code, signal) => {
+        job.closed = true;
         clearTimeout(job.timer);
         job.exitCode = code; job.signal = signal;
         if (job.status === 'running') job.status = code === 0 ? 'succeeded' : 'failed';
         job.finishedAt = new Date().toISOString();
         await this.persistJob(job);
-        resolve();
+        job.finish();
+        this.drainJobs();
       });
-    });
     job.timer = setTimeout(() => this.stopJob(id, 'timed_out'), timeoutSeconds * 1000);
     job.timer.unref();
+    void this.persistJob(job);
+    };
     await this.persistJob(job);
+    this.drainJobs();
     return this.job(id);
+  }
+  drainJobs() {
+    if (this.closing) return;
+    let active = [...this.jobs.values()].filter(j => j.child && !j.closed).length;
+    for (const job of this.jobs.values()) {
+      if (active >= this.limits.concurrency) break;
+      if (job.status !== 'queued' || !job.launch) continue;
+      active++;
+      try { job.launch(); }
+      catch (e) {
+        job.status = 'failed'; job.stderr = `Launch failed: ${e.message}`;
+        job.closed = true; job.finishedAt = new Date().toISOString();
+        void this.persistJob(job).then(() => { job.finish(); this.drainJobs(); });
+      }
+    }
   }
   job(id) {
     const job = this.jobs.get(id);
     if (!job) fail('JOB_NOT_FOUND', 'Unknown job (old results may have been evicted)');
-    const { child, timer, done, bytes, ...result } = job;
+    const { child, timer, done, bytes, launch, finish, closed, ...result } = job;
     return result;
   }
   async persistJob(job) {
@@ -226,12 +248,15 @@ export class Runtime {
     } catch (e) { job.persistenceWarning = `Job result could not be saved: ${e.message}`; process.stderr.write(job.persistenceWarning + '\n'); }
   }
   listJobs() {
-    return [...this.jobs.values()].map(j => ({ id: j.id, kind: j.kind, cwd: j.cwd, status: j.status, startedAt: j.startedAt, finishedAt: j.finishedAt, exitCode: j.exitCode })).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    return [...this.jobs.values()].map(j => ({ id: j.id, kind: j.kind, cwd: j.cwd, status: j.status, queuedAt: j.queuedAt, startedAt: j.startedAt, finishedAt: j.finishedAt, exitCode: j.exitCode })).sort((a, b) => (b.queuedAt || b.startedAt).localeCompare(a.queuedAt || a.startedAt));
   }
   stopJob(id, status = 'cancelled') {
     const job = this.jobs.get(id);
     if (!job) fail('JOB_NOT_FOUND', 'Unknown job');
-    if (job.status === 'running') {
+    if (job.status === 'queued') {
+      job.status = status; job.finishedAt = new Date().toISOString();
+      void this.persistJob(job).then(() => job.finish());
+    } else if (job.status === 'running') {
       job.status = status;
       // Kill the process group, not just the shell. Host commands can still escape deliberately.
       try { process.kill(-job.child.pid, 'SIGKILL'); }
@@ -274,7 +299,7 @@ export class Runtime {
   }
   async close() {
     this.closing = true;
-    for (const [id, job] of this.jobs) if (job.status === 'running') this.stopJob(id);
+    for (const [id, job] of this.jobs) if (['running', 'queued'].includes(job.status)) this.stopJob(id);
     await Promise.all([...this.jobs.values()].map(j => j.done));
     await this.queue;
   }

@@ -5,7 +5,7 @@
 Give a browser-based AI assistant tools to work on a real local project: read code,
 edit files, run tests, inspect failures, and keep task checkpoints.
 
-**Status: experimental 0.2.0.** Local MCP integration tests and a live ChatGPT web
+**Status: experimental 0.3.0.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
@@ -88,7 +88,7 @@ symlinks and hard-linked files. Secret detection is deliberately incomplete.
 
 ## Background tasks and Codex
 
-Add `--allow-codex` to expose `start_codex`. Install the official Codex CLI and run
+Direct execution by the web model is the default. Delegate only when the user explicitly asks for Codex; do not substitute a model CLI through shell. Add `--allow-codex` to expose `start_codex`. Install the official Codex CLI and run
 `codex login` first. Prompts go through stdin to `codex exec --ignore-user-config
 --sandbox workspace-write`; no shell interpolation or bypass flag. The CLI uses
 its existing login and default model, not the global user's MCP/model/hook config.
@@ -111,9 +111,9 @@ Unfinished records after a crash are reported as `interrupted`, never blindly
 rerun or killed using stale PIDs. This is result persistence, not reboot recovery.
 
 Limits are configurable: `--max-seconds` (default 600, up to 86400),
-`--max-concurrent` (2, up to 16), `--max-output-bytes` (131072, up to 16777216),
+`--max-concurrent` (4, up to 16), `--max-output-bytes` (131072, up to 16777216),
 `--max-file-bytes` (1048576, up to 16777216). Both job types share concurrency.
-Keep two jobs unless parallel changes are isolated. Retention: 100 job results,
+Excess jobs wait in FIFO order; execution timeout starts at launch. Avoid concurrent edits to the same files. Retention: 100 job results,
 100 task checkpoints; search visits at most 2000 entries. Truncation is explicit.
 PTYs, daemonized child processes, scheduling, browser and SSH modules are not provided.
 
@@ -140,3 +140,7 @@ output, process cancellation, timeout, and local HTTP request validation.
 See [architecture](docs/ARCHITECTURE.md), [security](SECURITY.md), and
 [contribution notes](CONTRIBUTING.md). MIT licensed. Independent project, not
 endorsed by OpenAI. No source code was copied from AgentDock or the article.
+
+Image generation and automatic ChatGPT image import are not implemented. File tools
+accept UTF-8 text, not binary images or ChatGPT attachment IDs. A web-generated
+image must first reach the local machine through a supported download/import path.

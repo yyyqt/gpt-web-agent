@@ -1,7 +1,7 @@
 # Running without an open browser
 
 Run one runtime per workspace; multiple independent runtimes do not share a concurrency lock.
-The browser is a client, not the local execution host. Once `start_command` or
+The browser is a client, not the local execution host. Once an explicitly requested `start_command` or
 `start_codex` returns a job ID, the job can finish while the browser is closed,
 provided the local runtime remains alive. Poll `list_commands` / `get_command`
 after reconnecting. Tool approval must have happened before dispatch.
@@ -38,3 +38,15 @@ CODEX_HOME, and uses workspace-write sandboxing. Other server environment secret
 are not forwarded. Global Codex config is ignored for a reproducible invocation;
 project instructions and rules still apply. A sandbox error is a real failure,
 not a reason to silently retry with unrestricted execution.
+
+## Queue and delegation
+
+Default: four active processes. Excess jobs are queued FIFO; execution timeout
+starts when launched. Cancelling queued work prevents launch. Shutdown cancels
+both queued and active jobs; queued records after a crash become interrupted,
+not silently replayed. At most 100 retained or pending records are accepted.
+
+The web model performs work directly by default. Enabling the Codex tool only makes
+it available; invocation requires an explicit user delegation request and
+`userRequestedDelegation: true`. This acknowledgement is model-provided, not
+independent proof of user consent or a shell security boundary.

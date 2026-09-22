@@ -4,7 +4,7 @@
 
 让 ChatGPT 网页通过 MCP，直接读取本机项目、修改代码、执行测试、查看错误并继续修正。
 
-**当前为实验版 0.2.0。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
+**当前为实验版 0.3.0。** 本地自动化测试和 ChatGPT 网页实际代码修复闭环均已通过，见 [验证记录](docs/VALIDATION.md)。源码仓库：[yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent)。尚未发布到 npm 或 ChatGPT 插件商店。
 
 ## 它负责什么
 
@@ -62,7 +62,7 @@ node src/cli.js --root /tmp/bridge-demo --allow-host-exec
 
 ## 长任务和本地 Codex
 
-网页可以直接编辑文件，也可以通过 `start_codex` 把完整任务交给本机 Codex。
+默认由网页模型自己读取、编辑文件和执行测试。只有用户明确要求“委托 Codex”或“Pro 规划、Codex 执行”时，才可以通过 `start_codex` 把完整任务交给本机 Codex。
 Codex 使用已有 CLI 登录，独立完成读代码、修改、测试的循环；消耗 Codex 账户额度。
 不调用 Codex 桌面应用界面，也不是把 Codex 推理变成免费网页额度。
 
@@ -99,11 +99,11 @@ Codex 自己负责后续推理和工具循环。电脑需要保持开机、联�
 | 项目 | 默认 | 可配置上限 |
 | --- | --- | --- |
 | 单任务时间 `--max-seconds` | 600 秒 | 24 小时 |
-| 并发 `--max-concurrent` | 2 | 16 |
+| 并发 `--max-concurrent` | 4 | 16 |
 | 输出 `--max-output-bytes` | 128 KiB | 16 MiB |
 | UTF-8 文件 `--max-file-bytes` | 1 MiB | 16 MiB |
 
-这些是本项目资源保护设置，不是 GPT 固定限制。并发修改同一项目容易冲突，通常保留 2 即可。
+这些是本项目资源保护设置，不是 GPT 固定限制。默认 4 个运行槽位，更多命令按 FIFO 排队；最多保留/接收 100 个任务。超时从实际启动开始计算。并发修改同一项目仍应避免冲突。
 文件路径校验、密钥文件名拦截、哈希冲突检测继续保留；不会为了方便取消这些保护。
 暂未提供 PTY 交互终端、自动定时调度、浏览器控制或 SSH 专用工具。
 
@@ -112,3 +112,11 @@ Codex 自己负责后续推理和工具循环。电脑需要保持开机、联�
 MIT 许可证，中英文说明、测试、CI 和安全边界文档均在仓库内。仅把通用源码和合成示例开源；实际项目文件、`.web-agent/`、账户信息和隧道凭据不得提交。
 
 参阅 [安全说明](SECURITY.md) 和 [架构](docs/ARCHITECTURE.md)。这是独立项目，不代表 OpenAI 官方产品。
+
+## 图片能力
+
+网页原生生图与本地文件接收是不同能力。当前工具仅支持 UTF-8 文本读写，
+没有生成图片、图片二进制导入、ChatGPT 附件下载或自动图片落盘工具。
+不要把网页图片预览、sandbox 路径或附件 ID 当成本机文件路径。
+当前可先在 ChatGPT 保存图片到本机，再明确指定已下载文件交给本地命令处理；
+“一句话自动生图并放入项目”尚未实现或验收。SVG 源码可作为文本写入，但不等同于原生生图。

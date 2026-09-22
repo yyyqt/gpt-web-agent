@@ -2,7 +2,15 @@
 
 Date: 2026-09-22. Local platform: macOS arm64, Node.js 22.22.3, npm 10.9.8.
 
-## Version 0.2 validation
+## Version 0.3 validation
+
+- 17 automated tests pass, including four active jobs plus queued fifth, FIFO dispatch,
+  queued cancellation, shutdown cleanup and timeout starting only on launch.
+- Codex remains optional. Explicit delegation acknowledgement is now required;
+  direct execution is the default in server instructions and capability discovery.
+- Image generation/import has not been implemented or live-validated.
+
+## Version 0.2 validation (historical)
 
 - 15 local automated tests pass, including HTTP disconnect/reconnect while a job
   continues, saved result reload, interrupted-state recovery, configurable limits,
