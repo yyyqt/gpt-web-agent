@@ -20,9 +20,17 @@ npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/arc
 
 ## 2. 创建自己的隧道和运行 key
 
-隧道是 ChatGPT 与这台电脑之间的**私有通道**。在 [OpenAI Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) 创建隧道，并把要用的 ChatGPT 工作区关联进去。复制页面显示的 `tunnel_...` ID，下一步会用到。创建或修改隧道的账户需要 **Tunnels Read + Manage**；运行和在 ChatGPT 中选择隧道需要 **Read + Use**。如果看不到创建按钮或隧道，请先检查当前 Platform 组织与权限，不要猜一个 ID。[权限说明](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels#permissions-and-access)
+隧道是 ChatGPT 与这台电脑之间的**私有通道**。打开 [OpenAI Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels)，点击右上角 **Create tunnel**。填写名称和简介，选择自己的组织，以及要使用的 **ChatGPT workspaces**，再创建。
 
-在 [OpenAI Platform → API keys](https://platform.openai.com/settings/organization/api-keys) 创建**专门供本机隧道使用**的 key。运行它的账户或组织角色需要 **Tunnels Read + Use**；如果创建 key 的页面也提供 Tunnels 权限选项，按同样的最小范围设置。不要把 key 发进聊天、Issue 或 Git。创建后先留在页面，等第 3 步提示输入时再粘贴。key 只显示一次的话，请妥善保管。
+![Platform 的 Tunnels 页面：创建入口和 ID 所在列，私人信息已遮盖](assets/platform-tunnels-list.png)
+
+![创建隧道表单：选择组织和 ChatGPT 工作区，组织 ID 已遮盖](assets/platform-create-tunnel.png)
+
+创建后回到列表，复制 **ID** 列显示的 `tunnel_...`，下一步会用到。图中的 `Example Tunnel` 和遮盖后的 ID 仅用于标示位置。创建或修改隧道的账户需要 **Tunnels Read + Manage**；运行和在 ChatGPT 中选择隧道需要 **Read + Use**。如果看不到创建按钮或隧道，请先检查当前 Platform 组织与权限，不要猜一个 ID。[权限说明](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels#permissions-and-access)
+
+打开 [OpenAI Platform → API keys](https://platform.openai.com/settings/organization/api-keys)，点击右上角 **Create new secret key**，为本机隧道创建专用 key。按页面要求选择项目和有效期；在 **Permissions** 选 **Restricted**，向下滚动到 **Tunnels**，勾选 **Read** 和 **Use**，其余权限保持 **None**。运行 key 的账户或组织角色也需要 Tunnels Read + Use。创建后先留在页面，等第 3 步提示输入时再粘贴。**不要把 key 发进聊天、Issue 或 Git**；key 只显示一次的话，请妥善保管。
+
+![创建 API key 时只为 Tunnels 勾选 Read 和 Use，无私人 key 信息](assets/platform-api-key-tunnels-permissions.png)
 
 ## 3. 运行一次 `connect`
 

@@ -1,6 +1,6 @@
 # Validation record
 
-Privacy-cropped onboarding screenshots in `docs/assets/` show the current ChatGPT settings path, developer-mode switch, MCP app creation form, and chat plugin picker. They exclude credentials, account identifiers, tunnel IDs and app IDs. The earlier live ChatGPT test evidence is recorded below in text; these setup screenshots do not themselves prove command execution.
+Privacy-cropped onboarding screenshots in `docs/assets/` show the current Platform tunnel form and key-permissions picker, plus the ChatGPT settings path, developer-mode switch, MCP app creation form, and chat plugin picker. The Platform images mask or replace private organization, workspace, tunnel, account, and key identifiers. The forms used for the screenshots were cancelled without creating a new tunnel or key. The earlier live ChatGPT test evidence is recorded below in text; these setup screenshots do not themselves prove command execution.
 
 ## Version 0.5.5 setup retry fix (2026-09-25)
 
