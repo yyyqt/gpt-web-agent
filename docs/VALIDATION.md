@@ -1,5 +1,7 @@
 # Validation record
 
+Two privacy-cropped screenshots of the earlier ChatGPT 6 Pro acceptance are published in `docs/assets/`. They show capability discovery and the completed local `npm test` job. No credential, account identifier or full local path appears in the cropped files. The 28-test result belongs to that earlier run.
+
 ## Version 0.5.5 setup retry fix (2026-09-25)
 
 - A first setup can stop after the official client has downloaded, before the tunnel profile is ready. `locateTunnelClient` now reuses the managed binary on retry after checking that it is a regular executable file and that `help quickstart` succeeds. A broken file produces an explicit error instead of being silently reused.

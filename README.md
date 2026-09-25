@@ -19,6 +19,14 @@ code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
 
+## ChatGPT web acceptance screenshots
+
+These are privacy-cropped screenshots from an earlier ChatGPT 6 Pro run. The crop excludes the local path, account and connection identifiers; the text has not been rewritten. The **28 passing tests** belong to that earlier version, not the current test count.
+
+![ChatGPT reports local execution enabled and Codex delegation disabled](docs/assets/chatgpt-capabilities.png)
+
+![ChatGPT runs local tests and reports exit code zero](docs/assets/chatgpt-runs-local-tests.png)
+
 For the shortest private ChatGPT setup, install directly from GitHub with
 `npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz`, create your
 own Platform tunnel and runtime key, then run `gpt-web-agent connect`. The
