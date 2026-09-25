@@ -2,7 +2,7 @@
 
 Let ChatGPT on the web read and edit local project files, run tests, and save generated images to your computer. The web model works directly through a private local bridge; delegating to local Codex is optional.
 
-**[Start here: step-by-step setup guide (Chinese, with screenshots)](docs/GETTING-STARTED.zh-CN.md)** · [中文首页](README.zh-CN.md)
+**[Start here: step-by-step setup guide with screenshots](docs/GETTING-STARTED.md)** · [中文首页](README.zh-CN.md)
 
 ## Three steps
 
@@ -15,4 +15,4 @@ Let ChatGPT on the web read and edit local project files, run tests, and save ge
 2. Create your own private tunnel and runtime key in OpenAI Platform, then run `gpt-web-agent connect` on your computer. The first run asks for the tunnel ID, whether to enable local shell commands, and the key. Later runs use the saved configuration.
 3. Enable developer mode in ChatGPT, create your own MCP app using **Tunnel**, and select it in a chat.
 
-Each person needs their own computer, ChatGPT connection, and Platform tunnel access. The current release is experimental and is not published to npm or the ChatGPT plugin store. The [setup guide](docs/GETTING-STARTED.zh-CN.md) shows every screen and the first connection check. For implementation details, see the [technical reference](docs/REFERENCE.md), [security notes](SECURITY.md), and [validation record](docs/VALIDATION.md).
+Everyone installs it on their own computer and connects with their own **personal** ChatGPT and Platform account; company or school accounts usually need an admin to enable developer mode and tunnels. The current release is experimental and is not published to npm or the ChatGPT plugin store. The [setup guide](docs/GETTING-STARTED.md) shows every screen and the first connection check. For implementation details, see the [technical reference](docs/REFERENCE.md), [security notes](SECURITY.md), and [validation record](docs/VALIDATION.md).
