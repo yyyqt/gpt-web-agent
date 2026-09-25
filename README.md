@@ -4,7 +4,7 @@
 
 Each person runs their own instance on their own computer with their own ChatGPT connection and tunnel credentials. Cloning this repository alone does not connect ChatGPT. This is self-hosted source code, not a shared hosted plugin or a plugin-store installation.
 
-## Local paths mode (0.5.0)
+## Local paths mode (0.5.1)
 
 Start with `node src/cli.js --dynamic-projects --allow-host-exec` to let the web model discover and work on local projects without registering or switching them. File paths, directory paths, image destinations and command `cwd` accept absolute paths; relative paths use the home directory reported by `workspace_info`. There is no per-call project parameter or mutable global project. All commands share the concurrency limit. Private file names, parent traversal and symlinks remain excluded by file tools; host shell is still unsandboxed. State lives in `~/Library/Application Support/gpt-web-agent/local-state` (also on Linux in this release); previous fixed-root state is left intact and can be inspected using the old `--root` mode. Existing `--root` mode remains supported.
 
@@ -14,7 +14,7 @@ Start with `node src/cli.js --dynamic-projects --allow-host-exec` to let the web
 Give a browser-based AI assistant tools to work on a real local project: read code,
 edit files, run tests, inspect failures, and keep task checkpoints.
 
-**Status: experimental 0.5.0.** Local MCP integration tests and a live ChatGPT web
+**Status: experimental 0.5.1.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
@@ -164,3 +164,7 @@ original from ChatGPT's library with the bridge. The fix admits the two exact
 Azure Blob hosts observed in ChatGPT's file handoff; other Azure accounts remain
 blocked. Generation/import were verified as separate requests, without manual
 file transfer. See the validation record for scope and limitations.
+
+## Public HTTPS option
+
+A separate authenticated option is [under design](docs/PUBLIC-CONNECTION-DESIGN.md). The current localhost HTTP endpoint must not be forwarded to the public internet.

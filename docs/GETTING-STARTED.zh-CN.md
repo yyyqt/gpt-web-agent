@@ -48,53 +48,35 @@ tunnel-client help quickstart
 
 **成功标志：** 显示官方客户端快速入门说明。如果提示 command not found，先解决客户端安装/PATH，再继续。
 
-## 4. 配置并启动连接
+## 4. 一次配置，之后一条命令启动
 
-仍在刚才的 `gpt-web-agent` 仓库目录中操作。先进入 Bash，下面输入方式在 Bash 中执行：
-
-```sh
-bash
-```
-
-隐藏输入运行 key，只放在当前终端进程环境中，不写入源码或命令历史：
+在仓库目录执行。macOS 需在自己的登录终端操作；Linux 需有可用的 Secret Service：
 
 ```sh
-printf '粘贴你的隧道运行 key（输入不可见），然后回车：'
-IFS= read -r -s CONTROL_PLANE_API_KEY
-printf '\n'
-export CONTROL_PLANE_API_KEY
+node src/cli.js setup
 ```
 
-再输入隧道 ID（ID 不是 key）：
+按提示输入你自己的 `tunnel_...` ID。程序会问你是否启用本机 Shell：只有输入 `YES` 才开启；Shell 会使用当前系统用户权限。随后 macOS Keychain 或 Linux Secret Service 会安全地接收隧道运行 key。Key 不写入 Git 仓库、配置文件或命令行参数。Linux 需要预先安装并运行 `secret-tool` 所依赖的 Secret Service。
+
+程序会检查 `node` 和官方 `tunnel-client`，生成本地 MCP 启动脚本和隧道 profile。如果已存在同名配置，先检查再手动处理；setup 不会默默覆盖旧配置。
+
+配置完成后运行：
 
 ```sh
-printf '输入你的 tunnel_... ID，然后回车：'
-IFS= read -r BRIDGE_TUNNEL_ID
+node src/cli.js start
 ```
 
-创建配置。第一次用下面这组命令即可，不需要改项目路径：
+**成功标志：** 隧道客户端进入运行状态，保持这个终端打开。之后每次启动都只需 `node src/cli.js start`，无需再次输入 key；key 到期时要更新系统凭据。
+
+如果希望 macOS 登录后自动启动，可执行：
 
 ```sh
-tunnel-client init \
-  --sample sample_mcp_stdio_local \
-  --profile gpt-web-agent \
-  --tunnel-id "$BRIDGE_TUNNEL_ID" \
-  --mcp-command "\"$(command -v node)\" \"$PWD/src/cli.js\" --dynamic-projects --allow-host-exec --max-concurrent 4 --max-seconds 7200 --max-output-bytes 1048576 --max-file-bytes 4194304"
-
-tunnel-client doctor --profile gpt-web-agent --explain
+node src/cli.js install-service
 ```
 
-已有同名 profile 时先检查旧配置，不要盲目覆盖。`doctor` 有错误时按错误处理；不要把完整日志或 key 直接公开。
+它会在 `~/Library/LaunchAgents` 写入不含 key 的 plist，登录后从 Keychain 读取。安装后需按命令输出运行一次 `launchctl bootstrap` 才能在当前登录会话立即启动；下次登录会自动启动。首次读取 Keychain 时系统可能询问授权。Linux 的 systemd 安装器尚未实现，可以按 [BACKGROUND.md](BACKGROUND.md) 手工设置 user service。
 
-确认诊断通过后启动：
-
-```sh
-tunnel-client run --profile gpt-web-agent
-```
-
-**保持这个终端运行。** 隧道会启动本项目，不需要再另开终端执行 `node src/cli.js`。直接运行 Node 后没有聊天界面是正常的：它是供 ChatGPT 调用的 MCP 服务。
-
-这套配置允许网页操作本机不同项目；文件路径和命令工作目录由 GPT 判断，不存在登记或切换项目的步骤。Shell 使用当前系统用户权限，工作目录不是沙箱。
+这套配置允许网页操作本机不同项目；GPT 从聊天上下文判断文件和命令目录，不需要登记或切换项目。
 
 ## 5. 在自己的 ChatGPT 里添加连接
 
@@ -128,13 +110,13 @@ tunnel-client run --profile gpt-web-agent
 
 ## 7. 以后每天怎么用
 
-每次电脑重启或连接停止后，在终端进入 Bash，重新执行第 4 步的隐藏 key 输入，再运行：
+每次电脑重启或连接停止后，在仓库目录运行：
 
 ```sh
-tunnel-client run --profile gpt-web-agent
+node src/cli.js start
 ```
 
-配置只需创建一次，不要每天执行 `init`。这种入门启动方式需要保持终端；它没有自动安装开机启动。关闭网页不等于停止本机任务，关闭这个终端或停止服务会中断运行任务。后台运行见 [BACKGROUND.md](BACKGROUND.md)。
+`setup` 只做一次。使用 `install-service` 且 LaunchAgent 已加载时，macOS 登录后会自动启动。连接需要电脑开机联网；运行 key 过期时重新配置凭据。关闭网页不等于停止已经派发的本机命令，停止本地服务会取消未完成任务。后台运行详情见 [BACKGROUND.md](BACKGROUND.md)。
 
 连接运行后，聊天选中插件，正常说话即可：
 
@@ -157,7 +139,7 @@ tunnel-client run --profile gpt-web-agent
 | GPT 只讲方案、不调用工具 | 确认本条聊天附加了连接，让它先调用 workspace_info |
 | 仍然固定到某个项目 | 配置可能用了旧的 `--root`，应改为 `--dynamic-projects`，重启并刷新工具 |
 | 升级后网页显示旧说明 | 设置里刷新插件工具，必要时新建聊天重新选择连接 |
-| 重启电脑后失联 | 重新启动隧道；若 key 过期需更新运行凭据 |
+| 重启电脑后失联 | 运行 `node src/cli.js start`，或检查 LaunchAgent；若 key 过期需更新系统凭据 |
 | 图片导入失败 | 需要真实生成文件/附件引用；看 [图片说明](IMAGES-AND-EDITS.md) |
 
 更新源码：停止自己的服务，进入仓库执行 `git pull --ff-only`、`npm ci --ignore-scripts`、`npm run check`，再启动并刷新 ChatGPT 工具。若自己改过源码，先处理本地改动，不要强制覆盖。

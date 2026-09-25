@@ -7,9 +7,14 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { Runtime } from './runtime.js';
 import os from 'node:os';
 import { createServer } from './server.js';
+import { operatorMain, stateBase } from './operator.js';
+import { VERSION } from './version.js';
 
-const HELP = `gpt-web-agent 0.5.0
-Usage: gpt-web-agent (--dynamic-projects | --root /absolute/workspace) [options]
+const HELP = `gpt-web-agent ${VERSION}
+Usage: gpt-web-agent setup [--tunnel-id tunnel_...]
+       gpt-web-agent start
+       gpt-web-agent install-service
+       gpt-web-agent (--dynamic-projects | --root /absolute/workspace) [options]
   --dynamic-projects    No fixed project; allow local paths, default relative base is home.
   --transport stdio|http  Default: stdio. HTTP binds ONLY to 127.0.0.1.
   --port 8788            Local HTTP port (1024-65535).
@@ -25,7 +30,7 @@ Usage: gpt-web-agent (--dynamic-projects | --root /absolute/workspace) [options]
 
 Default: file read/write and task checkpoints, shell disabled.
 State/audit metadata is written even in read-only mode: ROOT/.web-agent in fixed
-mode; ~/Library/Application Support/gpt-web-agent/local-state in dynamic mode.
+mode; the OS-appropriate state directory in dynamic mode.
 HTTP is for a trusted local tunnel/client ONLY; never publicly forward it
 without an authenticating gateway. Prefer the official Secure MCP Tunnel.
 The bridge does not call model APIs or extract browser session tokens.
@@ -34,6 +39,7 @@ Optional Codex tasks use the existing Codex login and account quota.
 let runtime, http;
 const servers = new Set();
 async function main() {
+  if (['setup', 'start', 'install-service'].includes(process.argv[2])) return operatorMain(process.argv[2], process.argv.slice(3));
   const { values } = parseArgs({ options: {
     root: { type: 'string' }, 'dynamic-projects': { type: 'boolean' }, transport: { type: 'string', default: 'stdio' },
     port: { type: 'string', default: '8788' }, 'read-only': { type: 'boolean' },
@@ -52,7 +58,7 @@ async function main() {
   }
   const options = { readOnly: !!values['read-only'], allowHostExec: !!values['allow-host-exec'], allowCodex: !!values['allow-codex'], codexBinary: values['codex-bin'] || 'codex', limits };
   runtime = values['dynamic-projects']
-    ? new Runtime(os.homedir(), { ...options, allowAbsolutePaths: true, stateDirectory: path.join(os.homedir(), 'Library', 'Application Support', 'gpt-web-agent', 'local-state') })
+    ? new Runtime(os.homedir(), { ...options, allowAbsolutePaths: true, stateDirectory: stateBase() })
     : new Runtime(values.root, options);
   await runtime.init();
   if (runtime.allowHostExec) process.stderr.write('Host shell ENABLED: commands run with your OS user permissions. No sandbox.\n');
