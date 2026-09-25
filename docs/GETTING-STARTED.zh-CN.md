@@ -66,14 +66,20 @@ gpt-web-agent install-service
 保持上一步运行，然后：
 
 1. 在设置启用开发者模式。
+
+   ![账户安全与登录中的开发人员模式开关](assets/chatgpt-developer-mode.png)
+
 2. 打开 [ChatGPT 插件页](https://chatgpt.com/plugins)，选择新增开发者应用。
 3. 名称填写 **GPT Web Agent**（名字可自定义）。
 4. 连接方式选择 **Tunnel**，选刚创建的隧道，或填写它的 ID。
 5. 对本项目的私有 stdio 连接，应用层选择 **No Authentication**；连接访问由私有隧道权限控制。不要把无认证接口公开到互联网。
 6. 创建后检查工具列表里有 `workspace_info`、`read_file`、`write_file`、`start_command`。
+
+   ![已安装插件的连接和权限设置示例](assets/chatgpt-plugin-settings.png)
+
 7. 新建聊天，从输入框旁的添加入口选择刚创建的 **GPT Web Agent**。
 
-作者账户中的旧名称是 Web Agent Bridge，不需要搜索或安装那个私人连接。你要选择的是自己刚创建的连接。
+截图来自作者账户，已裁去账户、密钥和连接标识。图中的 **Web Agent Bridge** 是作者的私人连接，“全部允许”是该账户的权限选择，不是接入必选项。你要选择的是自己刚创建的连接，不需要搜索或安装作者的连接。
 
 本项目已在聊天 + 6 Pro 验收；其他账号可选模型和工具支持以实际界面为准，不要求使用“工作”界面。
 

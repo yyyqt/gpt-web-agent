@@ -16,13 +16,13 @@
 
 完成后可以说：“看看 XXX 项目有什么优化空间”，接着说“修复第一个问题并测试”。不绑定具体项目，不要求每次输入绝对路径，也不用先切换项目，GPT 根据上下文自行判断和查找。默认由网页直接执行，Codex 委托是可选功能。
 
-## 网页端实测画面
+## ChatGPT 接入设置画面
 
-以下为此前在 ChatGPT 聊天 + 6 Pro 中的真实验收截图。截图只裁取能力和结果区域，未改写画面文字；本机路径、账户和连接标识没有入镜。画面中的 **28 项测试** 是当时版本的结果，当前版本的测试数见[验证记录](docs/VALIDATION.md)。
+下面是实际设置页：先在账户安全中开启开发者模式，再到插件设置查看自己的连接。截图只保留设置区域，没有账户信息、密钥、隧道 ID 或应用 ID。图中作者账户的私人连接叫 **Web Agent Bridge**；新用户应创建自己的连接，名称可以自定。图中“全部允许”只是该账户的权限选择，并非接入的必要条件。
 
-![ChatGPT 显示本机命令可用、Codex 委托关闭](docs/assets/chatgpt-capabilities.png)
+![ChatGPT 账户安全设置中的开发人员模式开关](docs/assets/chatgpt-developer-mode.png)
 
-![ChatGPT 调用本机命令运行测试并报告成功、退出码 0](docs/assets/chatgpt-runs-local-tests.png)
+![ChatGPT 插件设置中的 Web Agent Bridge 连接和权限](docs/assets/chatgpt-plugin-settings.png)
 
 **当前实验版 0.5.5，GitHub 安装或源码自部署。** 尚未发布到 npm 注册表或 ChatGPT 插件商店。朋友需要各自安装、使用自己的隧道和凭据；不需要连接作者的电脑。能否连接取决于各自账户的开发者模式及私有隧道权限。
 

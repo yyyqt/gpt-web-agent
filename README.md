@@ -19,13 +19,13 @@ code-edit/test/fix workflow pass; see [validation](docs/VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not published to npm or the ChatGPT plugin store.
 
-## ChatGPT web acceptance screenshots
+## ChatGPT connection settings
 
-These are privacy-cropped screenshots from an earlier ChatGPT 6 Pro run. The crop excludes the local path, account and connection identifiers; the text has not been rewritten. The **28 passing tests** belong to that earlier version, not the current test count.
+These screenshots show the actual ChatGPT settings used for a private connection. They are cropped to exclude account details and connection IDs. The installed app is named **Web Agent Bridge** on this account; name your own connection as you like. The “Allow all” permission shown here is this account's choice, not a required setting.
 
-![ChatGPT reports local execution enabled and Codex delegation disabled](docs/assets/chatgpt-capabilities.png)
+![ChatGPT developer mode enabled in account security settings](docs/assets/chatgpt-developer-mode.png)
 
-![ChatGPT runs local tests and reports exit code zero](docs/assets/chatgpt-runs-local-tests.png)
+![Installed Web Agent Bridge connection and permissions in ChatGPT plugin settings](docs/assets/chatgpt-plugin-settings.png)
 
 For the shortest private ChatGPT setup, install directly from GitHub with
 `npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz`, create your

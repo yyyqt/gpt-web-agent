@@ -1,6 +1,6 @@
 # Validation record
 
-Two privacy-cropped screenshots of the earlier ChatGPT 6 Pro acceptance are published in `docs/assets/`. They show capability discovery and the completed local `npm test` job. No credential, account identifier or full local path appears in the cropped files. The 28-test result belongs to that earlier run.
+Two privacy-cropped screenshots of the actual ChatGPT connection settings are published in `docs/assets/`. They show the enabled developer-mode switch and the installed Web Agent Bridge connection/permission settings. They exclude credentials, account identifiers, tunnel IDs and app IDs. The earlier live ChatGPT test evidence is recorded below in text; these setup screenshots do not themselves prove command execution.
 
 ## Version 0.5.5 setup retry fix (2026-09-25)
 
