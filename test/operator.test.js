@@ -46,6 +46,8 @@ test('operator start reads saved credential and does not print it or pass it in 
   const start = await run(process.execPath, [cli, 'start'], { env });
   assert.equal(start.code, 0, start.err);
   assert.doesNotMatch(start.out + start.err, /test-secret-value/);
+  const connect = await run(process.execPath, [cli, 'connect'], { env });
+  assert.equal(connect.code, 0, connect.err);
   const setup = await run(process.execPath, [cli, 'setup'], { env });
   assert.notEqual(setup.code, 0);
   assert.match(setup.err, /Existing profile found/);

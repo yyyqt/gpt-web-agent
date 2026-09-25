@@ -152,3 +152,9 @@ and lookalike-host rejection, signed-query redaction, and real PNG decoding/impo
 ## 0.5.0 local paths mode
 
 `npm run check`: 22 tests pass. New MCP transport integration verifies that no project parameter or switching tool is required, relative paths use the reported home directory, absolute paths read/write/patch/search two independent directories, commands run in their own cwd and share one concurrency cap. Private files, runtime state, parent traversal and symlinks remain rejected. Existing fixed-root tests still pass. Local tunnel configured with `--dynamic-projects`; no business project code was changed for this upgrade. ChatGPT tool refresh and live verification are recorded separately below.
+
+## Version 0.5.4 simplified onboarding (2026-09-25)
+
+- Installing the GitHub `main` source tarball through npm succeeded in a clean temporary prefix without Git; the installed CLI reported version 0.5.3, which was the published `main` at the time of that check. A locally packed 0.5.4 archive installed in a clean prefix, displayed the new `connect` command, and loaded `sharp` with `--ignore-scripts`.
+- The new downloader fetched the real OpenAI `tunnel-client` v0.0.15 macOS arm64 release, checked its `SHA256SUMS.txt` value, extracted the binary and installed it in a private temporary directory. This checks the download path, not a fresh end-to-end account connection.
+- `npm run check`: 30/30 tests pass, including a substituted release URL rejection, a bad checksum rejection before install, and reuse of an existing profile through `connect`.

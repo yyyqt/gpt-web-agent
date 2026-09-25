@@ -8,15 +8,15 @@
 
 ## 我该怎么开始？
 
-1. 在自己的电脑下载源码，安装依赖。
-2. 用自己的 OpenAI 账户创建私有隧道，启动本地服务。
+1. 安装 Node.js 22+，再运行 `npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/heads/main.tar.gz`。
+2. 用自己的 OpenAI 账户创建私有隧道，运行 `gpt-web-agent connect`。
 3. 在自己的 ChatGPT 里添加这个连接，然后正常聊天。
 
-每一步的命令、页面入口和成功标志都在上面的完整教程里。首次安装后运行 `node src/cli.js setup`，日常运行 `node src/cli.js start`；macOS 可用 `install-service` 安装登录自启。**仅下载仓库或执行 npm install 不会自动连接 ChatGPT。**
+每一步的命令、页面入口和成功标志都在上面的完整教程里。`connect` 首次配置并启动，以后也用同一条命令；缺少官方隧道客户端时会自动下载并校验。macOS 可用 `install-service` 安装登录自启。**安装程序仍不会自动取得你的账户隧道权限或在 ChatGPT 中创建连接。**
 
 完成后可以说：“看看 XXX 项目有什么优化空间”，接着说“修复第一个问题并测试”。不绑定具体项目，不要求每次输入绝对路径，也不用先切换项目，GPT 根据上下文自行判断和查找。默认由网页直接执行，Codex 委托是可选功能。
 
-**当前实验版 0.5.3，源码自部署。** 尚未发布到 npm 或 ChatGPT 插件商店。朋友需要各自安装、使用自己的隧道和凭据；不需要连接作者的电脑。能否连接取决于各自账户的开发者模式及私有隧道权限。
+**当前实验版 0.5.4，GitHub 安装或源码自部署。** 尚未发布到 npm 注册表或 ChatGPT 插件商店。朋友需要各自安装、使用自己的隧道和凭据；不需要连接作者的电脑。能否连接取决于各自账户的开发者模式及私有隧道权限。
 
 ## 连接关系
 

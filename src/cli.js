@@ -12,6 +12,7 @@ import { VERSION } from './version.js';
 
 const HELP = `gpt-web-agent ${VERSION}
 Usage: gpt-web-agent setup [--tunnel-id tunnel_...]
+       gpt-web-agent connect [--tunnel-id tunnel_...]  Configure if needed, then run.
        gpt-web-agent start
        gpt-web-agent set-key
        gpt-web-agent install-service
@@ -40,7 +41,7 @@ Optional Codex tasks use the existing Codex login and account quota.
 let runtime, http;
 const servers = new Set();
 async function main() {
-  if (['setup', 'start', 'set-key', 'install-service'].includes(process.argv[2])) return operatorMain(process.argv[2], process.argv.slice(3));
+  if (['setup', 'connect', 'start', 'set-key', 'install-service'].includes(process.argv[2])) return operatorMain(process.argv[2], process.argv.slice(3));
   const { values } = parseArgs({ options: {
     root: { type: 'string' }, 'dynamic-projects': { type: 'boolean' }, transport: { type: 'string', default: 'stdio' },
     port: { type: 'string', default: '8788' }, 'read-only': { type: 'boolean' },

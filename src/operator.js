@@ -4,6 +4,7 @@ import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
+import { downloadOfficialTunnel } from './tunnel-download.js';
 
 const PROFILE = 'gpt-web-agent';
 const SERVICE = 'gpt-web-agent-tunnel';
@@ -92,7 +93,7 @@ async function makeWrapper(base, hostExec) {
   await fs.writeFile(wrapper, `#!/bin/sh\nexec ${shellQuote(node)} ${shellQuote(cliPath)} ${flags.map(shellQuote).join(' ')}\n`, { mode: 0o700, flag: 'wx' });
   return wrapper;
 }
-export async function setup(args) {
+export async function setup(args, showStartHint = true) {
   const idIndex = args.indexOf('--tunnel-id');
   if (args.length && (idIndex !== 0 || args.length !== 2)) throw new Error('Usage: gpt-web-agent setup [--tunnel-id tunnel_...]');
   const base = configBase();
@@ -108,8 +109,13 @@ export async function setup(args) {
   catch (e) { if (e.code !== 'ENOENT') throw e; }
   const tunnelId = idIndex === 0 ? args[1] : await askTunnelId();
   validateTunnelId(tunnelId);
-  const tunnel = executable('tunnel-client');
   if (!process.stdin.isTTY) throw new Error('Run setup in an interactive terminal so the credential prompt is private');
+  let tunnel;
+  try { tunnel = executable('tunnel-client'); }
+  catch {
+    process.stdout.write('Downloading the official OpenAI tunnel-client and checking SHA-256...\n');
+    tunnel = await downloadOfficialTunnel(base);
+  }
   process.stdout.write('Enable host shell commands? They run with your OS user permissions. Type YES to enable; anything else keeps shell disabled: ');
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const hostExec = (await rl.question('')).trim() === 'YES'; rl.close();
@@ -123,7 +129,7 @@ export async function setup(args) {
     await Promise.allSettled([fs.rm(wrapper, { force: true }), fs.rm(tunnelPathRecord, { force: true })]);
     throw error;
   }
-  process.stdout.write(`Configured. Run: ${shellQuote(process.execPath)} ${shellQuote(cliPath)} start\n`);
+  process.stdout.write(showStartHint ? `Configured. Run: ${shellQuote(process.execPath)} ${shellQuote(cliPath)} start\n` : 'Configured. Starting the tunnel now...\n');
 }
 export async function start() {
   let tunnel;
@@ -173,6 +179,14 @@ export async function installService() {
 
 export async function operatorMain(command, args) {
   if (command === 'setup') return setup(args);
+  if (command === 'connect') {
+    let configured = false;
+    try { await fs.access(path.join(configBase(), 'profiles', `${PROFILE}.yaml`)); configured = true; }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (configured && args.length) throw new Error('Already configured. Run gpt-web-agent connect without setup options.');
+    if (!configured) await setup(args, false);
+    return start();
+  }
   if (args.length) throw new Error(`Unexpected arguments for ${command}`);
   if (command === 'start') return start();
   if (command === 'set-key') return setKey();
