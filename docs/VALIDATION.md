@@ -1,5 +1,11 @@
 # Validation record
 
+## Version 0.5.2 validation (2026-09-25)
+
+- `npm run check`: 27/27 tests passed on macOS. The setup test runs the real CLI in a pseudo-terminal with a home directory containing spaces and a fake tunnel client; it checks the exact quoted `--mcp-command` and executable wrapper. The LaunchAgent test checks the captured PATH and validates the generated plist with `plutil`.
+- The installed official `tunnel-client` v0.0.14 was run against temporary, credential-free profiles: an unquoted script path containing spaces failed stdio preflight because the executable was split at the first space; the quoted path passed `init` and produced a profile. This verifies local profile generation, not a live authenticated tunnel or ChatGPT connection.
+- No existing LaunchAgent was present on the development machine, so login-time startup was not live-tested.
+
 Date: 2026-09-22. Local platform: macOS arm64, Node.js 22.22.3, npm 10.9.8.
 
 ## Version 0.3 validation

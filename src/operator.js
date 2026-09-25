@@ -40,7 +40,7 @@ async function askTunnelId() {
   finally { rl.close(); }
 }
 function validateTunnelId(id) {
-  if (!/^tunnel_[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Expected a tunnel_... identifier from your Platform Tunnels page');
+  if (!/^tunnel_[a-z0-9]{32}$/.test(id)) throw new Error('Expected tunnel_ followed by 32 lowercase letters or digits from your Platform Tunnels page');
 }
 async function saveCredential() {
   if (process.platform === 'darwin') {
@@ -87,12 +87,8 @@ async function makeWrapper(base, hostExec) {
 export async function setup(args) {
   const idIndex = args.indexOf('--tunnel-id');
   if (args.length && (idIndex !== 0 || args.length !== 2)) throw new Error('Usage: gpt-web-agent setup [--tunnel-id tunnel_...]');
-  const tunnelId = idIndex === 0 ? args[1] : await askTunnelId();
-  validateTunnelId(tunnelId);
-  const tunnel = executable('tunnel-client');
   const base = configBase();
   const profileDir = path.join(base, 'profiles');
-  await fs.mkdir(profileDir, { mode: 0o700, recursive: true });
   const existing = path.join(profileDir, `${PROFILE}.yaml`);
   try { await fs.access(existing); throw new Error('Existing profile found. Inspect it before replacing or remove it explicitly.'); }
   catch (e) { if (e.code !== 'ENOENT') throw e; }
@@ -102,15 +98,19 @@ export async function setup(args) {
   const tunnelPathRecord = path.join(base, 'tunnel-path');
   try { await fs.access(tunnelPathRecord); throw new Error('Existing tunnel-client path found. Inspect it before replacing or remove it explicitly.'); }
   catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const tunnelId = idIndex === 0 ? args[1] : await askTunnelId();
+  validateTunnelId(tunnelId);
+  const tunnel = executable('tunnel-client');
   if (!process.stdin.isTTY) throw new Error('Run setup in an interactive terminal so the credential prompt is private');
   process.stdout.write('Enable host shell commands? They run with your OS user permissions. Type YES to enable; anything else keeps shell disabled: ');
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const hostExec = (await rl.question('')).trim() === 'YES'; rl.close();
   await saveCredential();
   try {
+    await fs.mkdir(profileDir, { mode: 0o700, recursive: true });
     await makeWrapper(base, hostExec);
     await fs.writeFile(tunnelPathRecord, tunnel + '\n', { mode: 0o600, flag: 'wx' });
-    await run(tunnel, ['init', '--sample', 'sample_mcp_stdio_local', '--profile', PROFILE, '--profile-dir', profileDir, '--tunnel-id', tunnelId, '--mcp-command', wrapper], { env: { ...process.env, CONTROL_PLANE_API_KEY: loadCredential() } });
+    await run(tunnel, ['init', '--sample', 'sample_mcp_stdio_local', '--profile', PROFILE, '--profile-dir', profileDir, '--tunnel-id', tunnelId, '--mcp-command', shellQuote(wrapper)], { env: { ...process.env, CONTROL_PLANE_API_KEY: loadCredential() } });
   } catch (error) {
     await Promise.allSettled([fs.rm(wrapper, { force: true }), fs.rm(tunnelPathRecord, { force: true })]);
     throw error;
@@ -118,9 +118,13 @@ export async function setup(args) {
   process.stdout.write(`Configured. Run: ${shellQuote(process.execPath)} ${shellQuote(cliPath)} start\n`);
 }
 export async function start() {
-  const tunnel = (await fs.readFile(path.join(configBase(), 'tunnel-path'), 'utf8')).trim();
+  let tunnel;
+  try { tunnel = (await fs.readFile(path.join(configBase(), 'tunnel-path'), 'utf8')).trim(); }
+  catch (error) { if (error.code === 'ENOENT') throw new Error('No tunnel configuration found. Run gpt-web-agent setup first.'); throw error; }
   if (!path.isAbsolute(tunnel)) throw new Error('Saved tunnel-client path is invalid; rerun setup');
   const profileDir = path.join(configBase(), 'profiles');
+  try { await fs.access(path.join(profileDir, `${PROFILE}.yaml`)); }
+  catch (error) { if (error.code === 'ENOENT') throw new Error('Tunnel profile is missing. Run gpt-web-agent setup first.'); throw error; }
   const key = loadCredential();
   await run(tunnel, ['run', '--profile', PROFILE, '--profile-dir', profileDir], { env: { ...process.env, CONTROL_PLANE_API_KEY: key } });
 }
@@ -138,7 +142,8 @@ export async function installService() {
   catch (e) { if (e.code !== 'ENOENT') throw e; }
   const xml = value => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   const logPath = path.join(base, 'tunnel-service.log');
-  const plist = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>${label}</string><key>ProgramArguments</key><array><string>${xml(process.execPath)}</string><string>${xml(cliPath)}</string><string>start</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>StandardOutPath</key><string>${xml(logPath)}</string><key>StandardErrorPath</key><string>${xml(logPath)}</string></dict></plist>\n`;
+  const servicePath = [...new Set([path.dirname(process.execPath), ...(process.env.PATH || '').split(path.delimiter).filter(Boolean), '/usr/bin', '/bin', '/usr/sbin', '/sbin'])].join(path.delimiter);
+  const plist = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>${label}</string><key>ProgramArguments</key><array><string>${xml(process.execPath)}</string><string>${xml(cliPath)}</string><string>start</string></array><key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(servicePath)}</string></dict><key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>StandardOutPath</key><string>${xml(logPath)}</string><key>StandardErrorPath</key><string>${xml(logPath)}</string></dict></plist>\n`;
   await fs.writeFile(target, plist, { mode: 0o600, flag: 'wx' });
   process.stdout.write(`Installed ${target}. Run launchctl bootstrap gui/$(id -u) ${shellQuote(target)} after confirming your Keychain is unlocked. No key is stored in the plist.\n`);
 }

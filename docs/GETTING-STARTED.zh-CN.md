@@ -56,7 +56,7 @@ tunnel-client help quickstart
 node src/cli.js setup
 ```
 
-按提示输入你自己的 `tunnel_...` ID。程序会问你是否启用本机 Shell：只有输入 `YES` 才开启；Shell 会使用当前系统用户权限。随后 macOS Keychain 或 Linux Secret Service 会安全地接收隧道运行 key。Key 不写入 Git 仓库、配置文件或命令行参数。Linux 需要预先安装并运行 `secret-tool` 所依赖的 Secret Service。
+按提示输入你自己的 `tunnel_...` ID。程序会问你是否启用本机 Shell：只有输入 `YES` 才开启；Shell 会使用当前系统用户权限。**要完成下面第 6 节的运行测试验收，这里必须输入 `YES`。** 如果只想读写文件，可以不启用，此时 `hostExecution=false`，跳过命令和测试验收。随后 macOS Keychain 或 Linux Secret Service 会安全地接收隧道运行 key。Key 不写入 Git 仓库、配置文件或命令行参数。Linux 需要预先安装并运行 `secret-tool` 所依赖的 Secret Service。
 
 程序会检查 `node` 和官方 `tunnel-client`，生成本地 MCP 启动脚本和隧道 profile。如果已存在同名配置，先检查再手动处理；setup 不会默默覆盖旧配置。
 
@@ -74,7 +74,7 @@ node src/cli.js start
 node src/cli.js install-service
 ```
 
-它会在 `~/Library/LaunchAgents` 写入不含 key 的 plist，登录后从 Keychain 读取。安装后需按命令输出运行一次 `launchctl bootstrap` 才能在当前登录会话立即启动；下次登录会自动启动。首次读取 Keychain 时系统可能询问授权。Linux 的 systemd 安装器尚未实现，可以按 [BACKGROUND.md](BACKGROUND.md) 手工设置 user service。
+它会在 `~/Library/LaunchAgents` 写入不含 key 的 plist，并保存安装时的 PATH（包括 Node 所在目录），登录后从 Keychain 读取。请从能正常运行 `node`、`npm` 和项目所需命令的终端执行安装；以后若迁移或卸载这些工具，需要重新生成 plist。安装后需按命令输出运行一次 `launchctl bootstrap` 才能在当前登录会话立即启动；下次登录会自动启动。首次读取 Keychain 时系统可能询问授权。Linux 的 systemd 安装器尚未实现，可以按 [BACKGROUND.md](BACKGROUND.md) 手工设置 user service。
 
 这套配置允许网页操作本机不同项目；GPT 从聊天上下文判断文件和命令目录，不需要登记或切换项目。
 
@@ -100,9 +100,9 @@ node src/cli.js install-service
 
 > 调用 workspace_info，报告 workspace、absolutePaths、fixedProject 和 hostExecution。然后列出我的 Documents 目录前 10 项。只读，不修改。
 
-预期结果：workspace 是**你自己的用户目录**，`absolutePaths=true`、`fixedProject=false`、`hostExecution=true`，目录内容也与你电脑一致。出现作者的用户名、假想目录或只给操作建议，都不算通过。
+预期结果：workspace 是**你自己的用户目录**，`absolutePaths=true`、`fixedProject=false`，目录内容也与你电脑一致。若 setup 时输入了 `YES`，还应有 `hostExecution=true`；未输入则是 `false`，属于预期。出现作者的用户名、假想目录或只给操作建议，都不算通过。
 
-再发下面这段完成写入、失败、修复、成功的完整验收：
+仅在 setup 时输入了 `YES` 的情况下，再发下面这段完成写入、失败、修复、成功的完整验收：
 
 > 在我的 Documents 下新建一个名称带时间戳的 gpt-web-agent-demo 目录，不覆盖旧目录。在里面创建一个有加法错误的 JavaScript 函数和对应测试，实际运行测试并记录失败退出码；读取文件后用局部补丁修复，再运行测试，报告最终退出码、文件绝对路径和改动。只操作这个新目录，不委托 Codex，不提交、不推送、不部署。
 
