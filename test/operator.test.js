@@ -8,6 +8,19 @@ import { spawn } from 'node:child_process';
 import { stateBase } from '../src/operator.js';
 
 const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
+const mockSecurity = `#!/usr/bin/env node
+const fs = require('node:fs');
+const operation = process.argv[2];
+if (process.env.TEST_SECURITY_CALLS) fs.appendFileSync(process.env.TEST_SECURITY_CALLS, operation + '\\n');
+if (operation === '-i') {
+  const command = fs.readFileSync(0, 'utf8');
+  const hex = / -X ([0-9a-f]+)\\n/.exec(command)?.[1];
+  if (!hex) process.exit(2);
+  fs.writeFileSync(process.env.TEST_SECRET_FILE, Buffer.from(hex, 'hex'), { mode: 0o600 });
+} else if (operation === 'find-generic-password') {
+  process.stdout.write(fs.readFileSync(process.env.TEST_SECRET_FILE));
+} else process.exit(2);
+`;
 const run = (file, args, options = {}, input = '') => new Promise((resolve, reject) => {
   const child = spawn(file, args, { stdio: ['pipe', 'pipe', 'pipe'], ...options });
   let out = '', err = '';
@@ -45,10 +58,10 @@ test('macOS setup quotes the wrapper command in a home directory with spaces', {
   const bin = path.join(parent, 'bin');
   await fs.mkdir(home); await fs.mkdir(bin);
   const argvFile = path.join(parent, 'tunnel-args');
-  await fs.writeFile(path.join(bin, 'security'), '#!/bin/sh\nif [ "$1" = find-generic-password ]; then printf test-secret-value; fi\n', { mode: 0o755 });
-  await fs.writeFile(path.join(bin, 'tunnel-client'), '#!/bin/sh\ntest "$CONTROL_PLANE_API_KEY" = test-secret-value || exit 9\nprintf "%s\\0" "$@" > "$TEST_ARGV_FILE"\n', { mode: 0o755 });
-  const driver = `import os, pty, select, sys, time\npid, fd = pty.fork()\nif pid == 0:\n os.execv(sys.argv[1], sys.argv[1:])\nbuf = b''\nsent_id = sent_yes = False\ndeadline = time.time() + 15\nwhile time.time() < deadline:\n ready, _, _ = select.select([fd], [], [], 1)\n if not ready: continue\n try: data = os.read(fd, 4096)\n except OSError: break\n if not data: break\n buf += data\n if not sent_id and b'Your own tunnel_' in buf:\n  os.write(fd, b'tunnel_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n'); sent_id = True\n if not sent_yes and b'Type YES' in buf:\n  os.write(fd, b'YES\\n'); sent_yes = True\nif time.time() >= deadline:\n try: os.kill(pid, 9)\n except ProcessLookupError: pass\n_, status = os.waitpid(pid, 0)\nsys.stdout.buffer.write(buf)\nsys.exit(os.waitstatus_to_exitcode(status))`;
-  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, TEST_ARGV_FILE: argvFile };
+  await fs.writeFile(path.join(bin, 'security'), mockSecurity, { mode: 0o755 });
+  await fs.writeFile(path.join(bin, 'tunnel-client'), '#!/bin/sh\ntest "${#CONTROL_PLANE_API_KEY}" = 164 || exit 9\nprintf "%s\\0" "$@" > "$TEST_ARGV_FILE"\n', { mode: 0o755 });
+  const driver = `import os, pty, select, sys, time\npid, fd = pty.fork()\nif pid == 0:\n os.execv(sys.argv[1], sys.argv[1:])\nbuf = b''\nsent_id = sent_yes = sent_key = False\ndeadline = time.time() + 15\nwhile time.time() < deadline:\n ready, _, _ = select.select([fd], [], [], 1)\n if not ready: continue\n try: data = os.read(fd, 4096)\n except OSError: break\n if not data: break\n buf += data\n if not sent_id and b'Your own tunnel_' in buf:\n  os.write(fd, b'tunnel_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n'); sent_id = True\n if not sent_yes and b'Type YES' in buf:\n  os.write(fd, b'YES\\n'); sent_yes = True\n if not sent_key and b'Paste tunnel runtime key' in buf:\n  os.write(fd, b'k' * 164 + b'\\n'); sent_key = True\nif time.time() >= deadline:\n try: os.kill(pid, 9)\n except ProcessLookupError: pass\n_, status = os.waitpid(pid, 0)\nsys.stdout.buffer.write(buf)\nsys.exit(os.waitstatus_to_exitcode(status))`;
+  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, TEST_ARGV_FILE: argvFile, TEST_SECRET_FILE: path.join(parent, 'saved-key') };
   const result = await run('python3', ['-c', driver, process.execPath, cli, 'setup'], { env });
   assert.equal(result.code, 0, result.out + result.err);
   const args = (await fs.readFile(argvFile, 'utf8')).split('\0').filter(Boolean);
@@ -67,6 +80,35 @@ test('start without setup gives an actionable error', { skip: process.platform !
   assert.notEqual(result.code, 0);
   assert.match(result.err, /Run gpt-web-agent setup first/);
   assert.doesNotMatch(result.err, /ENOENT/);
+});
+
+test('set-key updates only the saved credential and requires an existing setup', { skip: process.platform !== 'darwin' }, async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'bridge-set-key-'));
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const base = path.join(home, 'Library', 'Application Support', 'gpt-web-agent');
+  const bin = path.join(home, 'bin');
+  await fs.mkdir(bin);
+  const env = { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}`, TEST_SECURITY_CALLS: path.join(home, 'security-calls'), TEST_SECRET_FILE: path.join(home, 'saved-key') };
+  const missing = await run(process.execPath, [cli, 'set-key'], { env });
+  assert.notEqual(missing.code, 0);
+  assert.match(missing.err, /Run gpt-web-agent setup first/);
+  await fs.mkdir(path.join(base, 'profiles'), { recursive: true });
+  const profile = path.join(base, 'profiles', 'gpt-web-agent.yaml');
+  const wrapper = path.join(base, 'mcp-server.sh');
+  await fs.writeFile(profile, 'existing profile\n');
+  await fs.writeFile(wrapper, 'existing wrapper\n');
+  await fs.writeFile(path.join(base, 'tunnel-path'), '/existing/tunnel-client\n');
+  await fs.writeFile(path.join(bin, 'security'), mockSecurity, { mode: 0o755 });
+  const driver = `import os, pty, select, sys, time\npid, fd = pty.fork()\nif pid == 0: os.execv(sys.argv[1], sys.argv[1:])\nbuf = b''\nsent = False\ndeadline = time.time() + 15\nwhile time.time() < deadline:\n ready, _, _ = select.select([fd], [], [], 1)\n if not ready: continue\n try: data = os.read(fd, 4096)\n except OSError: break\n if not data: break\n buf += data\n if not sent and b'Paste tunnel runtime key' in buf:\n  os.write(fd, b'r' * 164 + b'\\n'); sent = True\nif time.time() >= deadline:\n try: os.kill(pid, 9)\n except ProcessLookupError: pass\n_, status = os.waitpid(pid, 0)\nsys.stdout.buffer.write(buf)\nsys.exit(os.waitstatus_to_exitcode(status))`;
+  const result = await run('python3', ['-c', driver, process.execPath, cli, 'set-key'], { env });
+  assert.equal(result.code, 0, result.out + result.err);
+  assert.match(result.out, /Tunnel key updated/);
+  assert.doesNotMatch(result.out + result.err, /r{16}/);
+  assert.deepEqual((await fs.readFile(env.TEST_SECURITY_CALLS, 'utf8')).trim().split('\n'), ['-i', 'find-generic-password', 'find-generic-password']);
+  assert.equal((await fs.readFile(env.TEST_SECRET_FILE)).length, 164);
+  assert.equal(await fs.readFile(profile, 'utf8'), 'existing profile\n');
+  assert.equal(await fs.readFile(wrapper, 'utf8'), 'existing wrapper\n');
+  assert.equal(await fs.readFile(path.join(base, 'tunnel-path'), 'utf8'), '/existing/tunnel-client\n');
 });
 
 test('CLI help version matches package.json; dynamic state base follows platform', async () => {

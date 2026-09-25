@@ -13,6 +13,7 @@ import { VERSION } from './version.js';
 const HELP = `gpt-web-agent ${VERSION}
 Usage: gpt-web-agent setup [--tunnel-id tunnel_...]
        gpt-web-agent start
+       gpt-web-agent set-key
        gpt-web-agent install-service
        gpt-web-agent (--dynamic-projects | --root /absolute/workspace) [options]
   --dynamic-projects    No fixed project; allow local paths, default relative base is home.
@@ -39,7 +40,7 @@ Optional Codex tasks use the existing Codex login and account quota.
 let runtime, http;
 const servers = new Set();
 async function main() {
-  if (['setup', 'start', 'install-service'].includes(process.argv[2])) return operatorMain(process.argv[2], process.argv.slice(3));
+  if (['setup', 'start', 'set-key', 'install-service'].includes(process.argv[2])) return operatorMain(process.argv[2], process.argv.slice(3));
   const { values } = parseArgs({ options: {
     root: { type: 'string' }, 'dynamic-projects': { type: 'boolean' }, transport: { type: 'string', default: 'stdio' },
     port: { type: 'string', default: '8788' }, 'read-only': { type: 'boolean' },

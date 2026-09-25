@@ -1,5 +1,12 @@
 # Validation record
 
+## Version 0.5.3 validation (2026-09-25)
+
+- `set-key` updates the saved credential without rewriting the tunnel profile, wrapper, or path record. The macOS setup and rotation tests pass 164-byte synthetic keys through an interactive pseudo-terminal and verify the full value reached the Keychain command interpreter over stdin.
+- A real 164-byte runtime key exposed a macOS `security -w` prompt truncation at 128 bytes. After switching to `security -i` with `-X` data sent only on stdin, the stored Keychain value matched the original key byte-for-byte. During storage, the key was not placed in argv, environment variables, logs, or repository files. The existing `start` flow supplies it to the tunnel process through `CONTROL_PLANE_API_KEY` at runtime.
+- With the real private tunnel, `tunnel-client doctor` passed; `gpt-web-agent start` returned HTTP 200 from `/readyz` without a credential error. The macOS LaunchAgent ran with the saved PATH, also returned HTTP 200 from `/readyz`, and `npm test` passed under that exact PATH in a minimal environment. The temporary LaunchAgent was then unloaded and removed; the pre-existing manual tunnel remained running.
+- A fresh ChatGPT web request invoking `npm test` through this new LaunchAgent was not completed in this validation. npm publication remains unavailable because the local npm CLI is not authenticated.
+
 ## Version 0.5.2 validation (2026-09-25)
 
 - `npm run check`: 27/27 tests passed on macOS. The setup test runs the real CLI in a pseudo-terminal with a home directory containing spaces and a fake tunnel client; it checks the exact quoted `--mcp-command` and executable wrapper. The LaunchAgent test checks the captured PATH and validates the generated plist with `plutil`.

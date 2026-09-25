@@ -42,15 +42,9 @@ async function askTunnelId() {
 function validateTunnelId(id) {
   if (!/^tunnel_[a-z0-9]{32}$/.test(id)) throw new Error('Expected tunnel_ followed by 32 lowercase letters or digits from your Platform Tunnels page');
 }
-async function saveCredential() {
-  if (process.platform === 'darwin') {
-    executable('security');
-    process.stdout.write('macOS Keychain will securely prompt for your tunnel runtime key. Do not paste it into chat.\n');
-    await run('security', ['add-generic-password', '-U', '-a', account(), '-s', serviceName(), '-w']);
-  } else {
-    executable('secret-tool');
-    if (!process.stdin.isTTY) throw new Error('Run setup in an interactive terminal to save a Linux Secret Service credential');
-    const secret = await new Promise((resolve, reject) => {
+async function readCredential() {
+  if (!process.stdin.isTTY) throw new Error('Run this command in an interactive terminal to save the tunnel key privately');
+  const secret = await new Promise((resolve, reject) => {
       process.stdout.write('Paste tunnel runtime key (hidden), then Enter: ');
       let value = '';
       process.stdin.setRawMode(true); process.stdin.resume();
@@ -63,8 +57,22 @@ async function saveCredential() {
         }
       };
       process.stdin.on('data', onData);
-    });
-    if (!secret) throw new Error('Tunnel key cannot be empty');
+  });
+  if (!secret) throw new Error('Tunnel key cannot be empty');
+  return secret;
+}
+async function saveCredential() {
+  if (process.platform === 'darwin') executable('security');
+  else executable('secret-tool');
+  const secret = await readCredential();
+  if (process.platform === 'darwin') {
+    // `security -w` truncates long interactive keys; use the command interpreter's
+    // stdin so the full value never appears in argv, the environment or a file.
+    if (!/^[A-Za-z0-9._-]+$/.test(account())) throw new Error('Unsupported macOS account name for Keychain storage');
+    const command = `add-generic-password -U -a ${account()} -s ${serviceName()} -X ${Buffer.from(secret).toString('hex')}\n`;
+    const result = spawnSync('security', ['-i'], { input: command, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 16384 });
+    if (result.error || result.status !== 0 || loadCredential() !== secret) throw new Error('macOS Keychain update failed or saved key did not match');
+  } else {
     const child = spawn('secret-tool', ['store', '--label=GPT Web Agent tunnel', 'application', 'gpt-web-agent', 'account', account()], { stdio: ['pipe', 'inherit', 'inherit'] });
     child.stdin.end(secret);
     await new Promise((resolve, reject) => { child.once('error', reject); child.once('close', code => code === 0 ? resolve() : reject(new Error('secret-tool store failed'))); });
@@ -129,6 +137,21 @@ export async function start() {
   await run(tunnel, ['run', '--profile', PROFILE, '--profile-dir', profileDir], { env: { ...process.env, CONTROL_PLANE_API_KEY: key } });
 }
 
+export async function setKey() {
+  const base = configBase();
+  try {
+    await fs.access(path.join(base, 'tunnel-path'));
+    await fs.access(path.join(base, 'profiles', `${PROFILE}.yaml`));
+  } catch (error) {
+    if (error.code === 'ENOENT') throw new Error('No complete tunnel configuration found. Run gpt-web-agent setup first.');
+    throw error;
+  }
+  if (!process.stdin.isTTY) throw new Error('Run set-key in an interactive terminal so the credential prompt is private');
+  await saveCredential();
+  loadCredential();
+  process.stdout.write('Tunnel key updated. Restart gpt-web-agent start or its LaunchAgent to use the new key.\n');
+}
+
 export async function installService() {
   if (process.platform !== 'darwin') throw new Error('install-service currently supports macOS LaunchAgent; Linux can use a user systemd service');
   const base = configBase();
@@ -152,6 +175,7 @@ export async function operatorMain(command, args) {
   if (command === 'setup') return setup(args);
   if (args.length) throw new Error(`Unexpected arguments for ${command}`);
   if (command === 'start') return start();
+  if (command === 'set-key') return setKey();
   if (command === 'install-service') return installService();
   throw new Error(`Unknown command ${command}`);
 }

@@ -116,7 +116,7 @@ node src/cli.js install-service
 node src/cli.js start
 ```
 
-`setup` 只做一次。使用 `install-service` 且 LaunchAgent 已加载时，macOS 登录后会自动启动。连接需要电脑开机联网；运行 key 过期时重新配置凭据。关闭网页不等于停止已经派发的本机命令，停止本地服务会取消未完成任务。后台运行详情见 [BACKGROUND.md](BACKGROUND.md)。
+`setup` 只做一次。使用 `install-service` 且 LaunchAgent 已加载时，macOS 登录后会自动启动。连接需要电脑开机联网。运行 key 过期或需要轮换时，在登录终端运行 `node src/cli.js set-key`，按系统提示保存新 key，再重启前台 `start` 进程或 LaunchAgent；此命令不改 profile、启动脚本和项目文件。关闭网页不等于停止已经派发的本机命令，停止本地服务会取消未完成任务。后台运行详情见 [BACKGROUND.md](BACKGROUND.md)。
 
 连接运行后，聊天选中插件，正常说话即可：
 
