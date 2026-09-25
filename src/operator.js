@@ -46,9 +46,10 @@ function validateTunnelId(id) {
 async function readCredential() {
   if (!process.stdin.isTTY) throw new Error('Run this command in an interactive terminal to save the tunnel key privately');
   const secret = await new Promise((resolve, reject) => {
+      // Disable echo before prompting, or a key pasted right after the prompt appears on screen.
+      process.stdin.setRawMode(true); process.stdin.resume();
       process.stdout.write('Paste tunnel runtime key (hidden), then Enter: ');
       let value = '';
-      process.stdin.setRawMode(true); process.stdin.resume();
       const onData = chunk => {
         for (const char of chunk.toString()) {
           if (char === '\r' || char === '\n') { process.stdin.off('data', onData); process.stdin.setRawMode(false); process.stdin.pause(); process.stdout.write('\n'); resolve(value); return; }
