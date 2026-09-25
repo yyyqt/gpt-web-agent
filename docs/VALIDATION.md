@@ -1,6 +1,6 @@
 # Validation record
 
-Two privacy-cropped screenshots of the actual ChatGPT connection settings are published in `docs/assets/`. They show the enabled developer-mode switch and the installed Web Agent Bridge connection/permission settings. They exclude credentials, account identifiers, tunnel IDs and app IDs. The earlier live ChatGPT test evidence is recorded below in text; these setup screenshots do not themselves prove command execution.
+Privacy-cropped onboarding screenshots in `docs/assets/` show the current ChatGPT settings path, developer-mode switch, MCP app creation form, and chat plugin picker. They exclude credentials, account identifiers, tunnel IDs and app IDs. The earlier live ChatGPT test evidence is recorded below in text; these setup screenshots do not themselves prove command execution.
 
 ## Version 0.5.5 setup retry fix (2026-09-25)
 
