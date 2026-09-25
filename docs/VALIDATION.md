@@ -2,6 +2,8 @@
 
 Privacy-cropped onboarding screenshots in `docs/assets/` show the current Platform tunnel form and key-permissions picker, plus the ChatGPT settings path, developer-mode switch, MCP app creation form, and chat plugin picker. The Platform images mask or replace private organization, workspace, tunnel, account, and key identifiers. The forms used for the screenshots were cancelled without creating a new tunnel or key. The earlier live ChatGPT test evidence is recorded below in text; these setup screenshots do not themselves prove command execution.
 
+On 2026-09-25, the logged-in Chinese ChatGPT interface was rechecked: Settings contains a Plugins tab, opening an installed connection there shows separate read/write tool lists, and the new MCP app form contains the checkbox “我了解并希望继续”. The chat picker screenshot now shows the real plus menu and search prompt without the author's old connection name. No new ChatGPT connection was created during this documentation check.
+
 ## Version 0.5.5 setup retry fix (2026-09-25)
 
 - A first setup can stop after the official client has downloaded, before the tunnel profile is ready. `locateTunnelClient` now reuses the managed binary on retry after checking that it is a regular executable file and that `help quickstart` succeeds. A broken file produces an explicit error instead of being silently reused.

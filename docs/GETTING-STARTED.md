@@ -12,6 +12,8 @@ When you finish this guide, you can tell ChatGPT "find my XXX project, fix it an
 
 > Use a **personal account**. On company or school ChatGPT accounts, an admin usually has to enable developer mode and tunnels, and a tunnel created in your personal Platform organization won't automatically show up in a company ChatGPT workspace. [Official notes](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels#permissions-and-access)
 
+**Before installing, open [Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) and check whether you can create a tunnel.** A ChatGPT subscription does not itself grant tunnel access. If **Create tunnel** is unavailable, resolve the account or organization permission first; the steps below cannot finish yet.
+
 The screenshots below were taken in the Chinese ChatGPT interface; the English button names are given in the text.
 
 ## 1. Open a terminal and install the program
@@ -55,6 +57,7 @@ Back in the list, click the copy button next to the **ID** and keep the `tunnel_
 
 **Create the runtime key:** open [Platform → API keys](https://platform.openai.com/settings/organization/api-keys) and click **Create new secret key** in the top right.
 
+- Choose a project and expiry as the form asks.
 - Set **Permissions** to **Restricted**.
 - Scroll down to **Tunnels** and select only **Read** and **Use**. Leave everything else at **None**.
 
@@ -115,16 +118,16 @@ Fill in the form like this:
 
 - **Name**: `GPT Web Agent` (or any name; you'll search for it later).
 - **Connection**: choose **Tunnel**, then pick the tunnel from step 2 under available tunnels. If it isn't listed, switch to entering the tunnel ID and paste the `tunnel_...`.
-- **Authentication**: choose **No Authentication**. Only you can use the tunnel, so no extra sign-in is needed here.
-- Tick the risk acknowledgement checkbox at the bottom ("I understand and want to continue" or similar), then click **Create**.
+- **Authentication**: choose **No Authentication**. This uses a private tunnel controlled by OpenAI organization and ChatGPT workspace permissions; it does not expose an unauthenticated local server to the public internet. Do not associate the tunnel with an untrusted workspace.
+- Tick the risk acknowledgement checkbox at the bottom, then click **Create**.
 
 ![New MCP app form: name, tunnel, and no authentication](assets/chatgpt-create-mcp-app.png)
 
-After it's created, go to **Settings → Plugins** and open **GPT Web Agent** to see its tools. You should see `workspace_info`, `read_file` and `write_file`, plus `start_command` if you typed `YES` in step 3. If there are no tools at all, check that the terminal from step 3 is still running.
+After it's created, go to **Settings → Plugins** and open your new connection to see its read and write tools. Look for **Workspace info**, **Read file** and **Write file**; **Start command** should also be available if you typed `YES` in step 3. The interface may show names with spaces rather than code-style underscores. If there are no tools at all, check that the terminal from step 3 is still running and refresh the connection.
 
 **Select it in a chat:** start a new chat, click the **+** on the left of the message box, type the name you chose (for example GPT Web Agent), and click it under plugins. Once its label appears in the message box, send your message.
 
-![Search for and select your connection next to the message box](assets/chatgpt-select-plugin.png)
+![The plus menu next to the chat box: search for your connection at the bottom](assets/chatgpt-select-plugin.png)
 
 ## 5. Check that it really reaches your computer
 
@@ -161,7 +164,7 @@ Your computer must be on and online, and the terminal must stay open. Closing th
 
 | What you see | What to do |
 | --- | --- |
-| No developer mode, or no Create tunnel in Platform | Make sure you're using a personal account; company or school accounts need an admin to enable it |
+| No developer mode, or no Create tunnel in Platform | Check account and organization permissions; ask your admin for a company or school account. A personal ChatGPT subscription does not guarantee Platform tunnel access |
 | Your tunnel isn't in ChatGPT's list of tunnels | When creating the tunnel, **ChatGPT workspaces** must be the ChatGPT account you're using; or enter the tunnel ID directly |
 | Terminal says `gpt-web-agent: command not found` | Close and reopen the terminal; if it still fails, rerun the install command from step 1 and look for errors |
 | The terminal exits with an error | Run `gpt-web-agent connect` again; if it says the key is invalid, run `gpt-web-agent set-key` |

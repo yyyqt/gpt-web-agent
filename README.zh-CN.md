@@ -15,4 +15,4 @@
 2. 用自己的 OpenAI Platform 账户创建私有隧道和运行 key，在电脑上运行 `gpt-web-agent connect`。首次会询问隧道 ID、是否允许本机命令，以及 key；以后仍用同一条命令启动。
 3. 在 ChatGPT 开启开发者模式，新增选择 **Tunnel** 的 MCP 应用，然后在聊天里选中自己的连接。
 
-每个人都要在自己的电脑上安装，用自己的**个人** ChatGPT 和 Platform 账户连接；公司或学校账户通常需要管理员开通开发者模式和隧道。当前是实验版，尚未发布到 npm 或 ChatGPT 插件商店。完整页面位置、成功标志和排错步骤见[上手教程](docs/GETTING-STARTED.zh-CN.md)；实现细节见[技术参考](docs/REFERENCE.zh-CN.md)、[安全说明](SECURITY.md)和[验证记录](docs/VALIDATION.md)。
+每个人都要在自己的电脑上安装，用自己的账户连接。本教程以**个人** ChatGPT 和 Platform 账户为例；公司或学校账户通常需要管理员开通开发者模式和隧道。当前是实验版，尚未发布到 npm 或 ChatGPT 插件商店。完整页面位置、成功标志和排错步骤见[上手教程](docs/GETTING-STARTED.zh-CN.md)；实现细节见[技术参考](docs/REFERENCE.zh-CN.md)、[安全说明](SECURITY.md)和[验证记录](docs/VALIDATION.md)。

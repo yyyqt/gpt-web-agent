@@ -14,6 +14,8 @@
 
 > 请用**个人账户**操作。公司或学校的 ChatGPT 账户，开发者模式和隧道通常要管理员开通；个人 Platform 里建的隧道也不会自动出现在公司的 ChatGPT 里。[官方说明](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels#permissions-and-access)
 
+**开始安装前，先打开 [Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) 看能否创建隧道。** ChatGPT 订阅不等于已获得隧道权限；如果没有 **Create tunnel**，先解决账户或组织权限，下面的安装步骤暂时无法完成。
+
 ## 1. 打开终端，安装程序
 
 Mac 上按 **Command（⌘）+ 空格**，输入 **终端**（或 Terminal），按回车。Linux 打开系统自带的终端。
@@ -55,6 +57,7 @@ npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/arc
 
 **创建运行 key：** 打开 [Platform → API keys](https://platform.openai.com/settings/organization/api-keys)，点右上角 **Create new secret key**。
 
+- 按页面提示选择项目和有效期。
 - **Permissions** 选 **Restricted**。
 - 向下找到 **Tunnels**，只勾选 **Read** 和 **Use**。其它都保持 **None**。
 
@@ -115,16 +118,16 @@ Configured. Starting the tunnel now...
 
 - **名称**：`GPT Web Agent`（也可以自己起名，后面要用它来搜索）。
 - **连接**：选 **隧道**，再从“可用隧道”里选第 2 步建的那条。列表里没有的话，点“改用隧道 ID”，粘贴 `tunnel_...`。
-- **身份验证**：选 **无身份验证**。隧道本身只有你能用，所以这里不用再加一层登录。
+- **身份验证**：选 **无身份验证**。这里使用的是受 OpenAI 组织和 ChatGPT 工作区权限控制的私有隧道，不是在公网开放无认证的本机服务。不要把隧道关联给不信任的工作区。
 - 勾选底部的 **我了解并希望继续**，然后点 **创建**。
 
 ![新建 MCP 应用：名称、隧道和无身份验证](assets/chatgpt-create-mcp-app.png)
 
-创建后，在 **设置 → 插件** 里点开刚建的 **GPT Web Agent**，能看到它提供的工具，应该有 `workspace_info`、`read_file`、`write_file`；第 3 步输了 `YES` 的话还有 `start_command`。一个工具都没有的话，检查第 3 步的终端是不是还开着。
+创建后，在 **设置 → 插件** 里点开刚建的连接，可以看到“读取工具”和“写入工具”。寻找 **Workspace info**、**Read file**、**Write file**；第 3 步输了 `YES` 的话还应能用 **Start command**。界面显示的名称可能带空格，不必找带下划线的代码名。一个工具都没有的话，检查第 3 步的终端是不是还开着，并刷新连接。
 
 **在聊天里选中它：** 新建一个聊天，点输入框左边的 **+**，输入你起的名字（比如 GPT Web Agent），在“插件”下面点它。输入框出现这个标签后再发消息。
 
-![在聊天输入框旁搜索并选择自己的连接](assets/chatgpt-select-plugin.png)
+![聊天输入框旁的加号菜单：在底部搜索自己的连接名称](assets/chatgpt-select-plugin.png)
 
 ## 5. 试一下，确认真的连上了自己的电脑
 
@@ -161,7 +164,7 @@ Configured. Starting the tunnel now...
 
 | 现象 | 怎么办 |
 | --- | --- |
-| 找不到开发者模式，或 Platform 里没有 Create tunnel | 确认用的是个人账户；公司/学校账户需要管理员开通 |
+| 找不到开发者模式，或 Platform 里没有 Create tunnel | 检查账户和组织权限；公司/学校账户联系管理员。个人 ChatGPT 订阅也不保证有 Platform 隧道权限 |
 | ChatGPT 的“可用隧道”里没有你的隧道 | 建隧道时 **ChatGPT workspaces** 要选你正在用的 ChatGPT 账户；也可以改用“隧道 ID”直接粘贴 |
 | 终端提示 `gpt-web-agent: command not found` | 关掉终端重开再试；还不行就重新执行第 1 步的安装命令，看有没有报错 |
 | 终端报错退出 | 重新运行 `gpt-web-agent connect`；提示 key 无效就运行 `gpt-web-agent set-key` 换一个 |
