@@ -1,56 +1,142 @@
-# GPT Web Agent
+<p align="center">
+  <img src="docs/assets/banner.zh-CN.svg" alt="GPT Web Agent：ChatGPT 网页 → 私有隧道 → 你的电脑" width="100%">
+</p>
 
-让 ChatGPT 网页直接读写你电脑里的项目、运行命令和测试，并把网页生成的图片保存到本地。默认由网页模型自己调用本地工具；**只有你明确要求并另行启用时，才会委托本地 Codex**。
+<p align="center">
+  <a href="https://www.npmjs.com/package/gpt-web-agent"><img src="https://img.shields.io/npm/v/gpt-web-agent?color=34d399&label=npm" alt="npm 版本"></a>
+  <a href="https://github.com/yyyqt/gpt-web-agent/actions/workflows/ci.yml"><img src="https://github.com/yyyqt/gpt-web-agent/actions/workflows/ci.yml/badge.svg" alt="测试状态"></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D22-38bdf8" alt="Node.js 22+">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-64748b" alt="macOS | Linux">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-64748b" alt="MIT"></a>
+</p>
 
-[English](README.md) · [带截图的逐步教程](docs/GETTING-STARTED.zh-CN.md)
+<p align="center">
+  <b>中文</b> · <a href="README.md">English</a> · <a href="docs/GETTING-STARTED.zh-CN.md">带截图的上手教程</a>
+</p>
 
-## 开始前确认
+---
 
-- 一台 Mac 或 Linux 电脑，安装了 Node.js **22 或更新版本**。Windows 可尝试 WSL，目前没有实机验收。
-- ChatGPT 账户能开启开发者模式；OpenAI Platform 账户能在 [Tunnels 页面](https://platform.openai.com/settings/organization/tunnels)看到 **Create tunnel**。**ChatGPT 订阅不等于拥有 Platform 隧道权限**，先确认这一点再安装。个人账户最方便；公司或学校账户可能需要管理员开通并关联工作区。
-- 每位使用者在自己的电脑上安装，用自己的账户建立连接。本仓库不是替别人托管电脑的在线服务，也尚未上架 ChatGPT 插件商店。
+## 这是什么？
 
-## 安装与连接
+平时用 ChatGPT 写代码，是它给你一段代码，你复制、粘贴、运行，再把报错贴回去。
 
-1. **安装程序。** 打开终端，运行 `node --version` 确认是 `v22` 或更高；没有 Node 时先按 [Node.js 官方指引](https://nodejs.org/en/download)安装。然后运行：
+**GPT Web Agent 把这一步省掉了。** 在你电脑上装好它，ChatGPT 网页版就能直接读你的项目、改文件、跑测试，改完告诉你结果。你只需要在聊天框里说话：
 
-   ```sh
-   npm install --global gpt-web-agent
-   gpt-web-agent --help
-   ```
+```text
+你：  看看我的 blog 项目有什么可以优化的，先只分析。
+GPT： [读取 package.json、src/…] 发现 3 个问题：① 首页图片没压缩 ② ……
+你：  修第一个，改完跑一下测试。
+GPT： [修改 src/image.js] [运行 npm test] 测试通过。改动了 2 个文件：……
+```
 
-   看到帮助文字表示程序已安装。如果报 `EACCES`，不要加 `sudo`；换用用户可写的 Node 安装方式，参见[逐步教程](docs/GETTING-STARTED.zh-CN.md#1-打开终端安装程序)。
+它是一个运行在你电脑上的小程序（MCP 服务），通过 OpenAI 官方的私有隧道和你的 ChatGPT 连接。**ChatGPT 负责思考，这个程序负责在你的电脑上动手。**
 
-2. **创建自己的隧道和运行 key。** 在 [Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) 点 **Create tunnel**，填写名称，选择自己的组织和要使用的 **ChatGPT workspaces**。创建后复制列表 **ID** 列中的 `tunnel_...`。再到 [Platform → API keys](https://platform.openai.com/settings/organization/api-keys) 点 **Create new secret key**，选项目和有效期，权限选 **Restricted**，只为 **Tunnels** 勾选 **Read**、**Use**，其余保持 **None**。保存显示的 `sk-...`；**不要发到聊天或提交进仓库**。[这一步的页面截图](docs/GETTING-STARTED.zh-CN.md#2-在-openai-platform-创建隧道和钥匙)
+## 为什么用它？
 
-3. **在本机启动连接。** 运行：
+|  | 复制粘贴 | GPT Web Agent |
+| --- | --- | --- |
+| 改代码 | 你手动复制粘贴 | GPT 直接改文件 |
+| 跑测试 | 你运行，再把报错贴回去 | GPT 自己跑，自己看结果 |
+| 看项目 | 你挑文件贴给它 | GPT 自己去找、去读 |
+| 生成的图片 | 手动下载再挪位置 | 一句话存到项目指定目录 |
 
-   ```sh
-   gpt-web-agent connect
-   ```
+- **用你现有的 ChatGPT**：本项目不调用任何模型 API，不额外按 token 计费，也不需要装 Codex 等其它 AI 工具。
+- **不绑项目**：说一句“再看看 YYY 项目”就切过去了，不用登记路径。
+- **不会误覆盖**：写文件前校验内容指纹（SHA-256），文件在这期间被你改过就拒绝覆盖。
+- **关网页也不中断**：已经开始的测试、构建会在电脑上继续跑，回来再问结果。
+- **不碰你的账号**：不代理 ChatGPT、不读取浏览器 Cookie，只走 OpenAI 官方隧道。
 
-   首次依次输入隧道 ID、是否允许本机命令、运行 key。想让 GPT 跑测试时，在第二问输入大写 `YES`；只需读写文件就直接回车。**本机命令拥有当前电脑用户的权限，不是沙箱。** 粘贴 key 时屏幕不显示字符，是正常的。看到 `tunnel-client started` 后保持终端运行；以后启动仍用同一条命令，通常无需再输入 key。
+## 快速开始
 
-4. **在 ChatGPT 添加连接。** 在 ChatGPT 点击头像 → **设置 → 账户安全与登录**，打开**开发者模式**。打开[插件页](https://chatgpt.com/plugins)，点 **+ → 创建应用 → 创建 MCP 应用**。名称可填 `GPT Web Agent`；连接选 **隧道**，选择刚建的隧道；身份验证选 **无身份验证**，勾选“我了解并希望继续”，然后创建。这里依靠组织和工作区权限控制私有隧道，**不要把无认证的本机服务直接暴露到公网**。新建聊天，在输入框旁的 **+** 菜单搜索并选中自己创建的连接。[这一步的页面截图](docs/GETTING-STARTED.zh-CN.md#4-在-chatgpt-里添加你的连接)
+> [!IMPORTANT]
+> 请用**个人**账户，并先确认两件事：ChatGPT「设置 → 账户安全与登录」里有**开发者模式**；[Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) 里能点 **Create tunnel**。ChatGPT 订阅不等于有隧道权限；公司或学校账户通常要管理员开通。
 
-## 确认它真的连到了自己的电脑
+**1. 安装**（需要 Node.js 22+，Mac 或 Linux）
 
-在**已选中连接**的聊天中发送：
+```sh
+npm install --global gpt-web-agent
+```
 
-> 调用 workspace_info，告诉我连接的是哪个目录、能不能运行命令。再列出我 Documents 文件夹里的前 10 项。只看，不要改文件。
+**2. 在 OpenAI Platform 创建隧道和 key**
 
-检查它**实际调用了工具**，列出的文件与你电脑里的一致。仅看到本机 `tunnel-client started`，还不代表 ChatGPT 已接通。需要测试写文件和运行命令时，请按[首次完整验收](docs/GETTING-STARTED.zh-CN.md#5-试一下确认真的连上了自己的电脑)操作，它只在新建的演示目录里改动。
+- [Tunnels](https://platform.openai.com/settings/organization/tunnels) → **Create tunnel**，关联你的 ChatGPT 工作区，复制 `tunnel_...` ID。
+- [API keys](https://platform.openai.com/settings/organization/api-keys) → **Create new secret key**，权限选 **Restricted**，只给 **Tunnels** 勾 **Read** 和 **Use**。
 
-之后每次开机运行 `gpt-web-agent connect` 并保持电脑联网，再在 ChatGPT 聊天中选中连接。例如：“先看看我的 XXX 项目哪里值得优化，不要修改”；确认后再说“修复第一个问题并跑测试，保留原有改动”。项目无需预先登记；位置不清楚时让 GPT 确认。关闭网页不会终止**已经派发**到本机的命令，后续步骤仍取决于网页任务是否继续推理。
+**3. 在电脑上连接**
 
-## 常见问题与更多资料
+```sh
+gpt-web-agent connect
+```
 
-| 现象 | 先检查什么 |
+按提示粘贴隧道 ID 和 key；想让 GPT 跑测试，就在第二个问题输入 `YES`。看到 `tunnel-client started` 后保持终端开着。以后每次开机都只运行这一条命令。
+
+**4. 在 ChatGPT 添加连接**
+
+打开开发者模式 → [插件页](https://chatgpt.com/plugins) 点 **+ → 创建应用 → 创建 MCP 应用** → 连接选**隧道**，身份验证选**无身份验证**，勾选风险确认 → 创建。新建聊天，在输入框旁的 **+** 里选中它，就可以开始了。
+
+每一步的页面截图、成功标志和排错，见 **[上手教程](docs/GETTING-STARTED.zh-CN.md)**。
+
+## 它能做什么
+
+| 能力 | 说明 |
 | --- | --- |
-| 看不到 Create tunnel 或开发者模式 | 检查 Platform 与 ChatGPT 的账户、组织权限；公司或学校账户联系管理员。订阅 ChatGPT 不自动授予隧道权限 |
-| ChatGPT 找不到隧道 | 创建隧道时是否关联了当前 ChatGPT 工作区；也可在应用表单中改用隧道 ID |
-| `gpt-web-agent: command not found` | 重开终端，检查 `node --version`，重新执行上面的安装命令并查看错误 |
-| 终端运行了，GPT 仍只讲方案 | 当前聊天是否从 **+** 菜单选中连接；先让它调用 `workspace_info` |
-| 重启或 key 过期后失联 | 再运行 `gpt-web-agent connect`；key 过期时先运行 `gpt-web-agent set-key` |
+| 浏览和搜索 | 列目录、读文件、全文搜索 |
+| 修改文件 | 新建、整体改写或局部补丁，写入前校验防止覆盖 |
+| 运行命令 | 跑测试、构建、装依赖；可查看进度、超时和取消（需在配置时开启） |
+| 保存图片 | 把网页里生成或上传的图片原样存进项目 |
+| 任务记录 | 多步任务的进度检查点，重新连接后还能接着看 |
+| 委托 Codex | 可选：你明确要求时，把任务交给本机 Codex 执行 |
 
-更多操作见[带截图的逐步教程](docs/GETTING-STARTED.zh-CN.md)、[图片导入与局部补丁](docs/IMAGES-AND-EDITS.md)、[技术参考](docs/REFERENCE.zh-CN.md)、[安全说明](SECURITY.md)、[验证记录](docs/VALIDATION.md)和[贡献指南](CONTRIBUTING.md)。开机自动连接、Codex 委托和源码运行属于可选进阶功能。
+## 安全须知
+
+> [!WARNING]
+> 开启“运行命令”后，GPT 执行的命令和你自己在终端里敲的**权限一样大**，不是沙箱。只在自己的连接里使用；处理敏感项目时，可以不开启命令，只用文件读写。
+
+- 运行 key 存在 macOS 钥匙串或 Linux 系统密码库，不写进配置文件或仓库。
+- 连接只通过 OpenAI 官方私有隧道，不在公网开放端口。**不要**自己把本地服务映射到公网。
+- 更多细节见[安全说明](SECURITY.md)。
+
+## 常见问题
+
+<details>
+<summary><b>需要付费吗？</b></summary>
+
+本项目免费开源，也不调用模型 API。你需要能开启开发者模式的 ChatGPT 账户，以及 OpenAI Platform 的隧道权限；隧道相关费用以 OpenAI 账户页面显示为准。
+</details>
+
+<details>
+<summary><b>Windows 能用吗？</b></summary>
+
+目前支持 macOS 和 Linux。Windows 可以尝试在 WSL 里运行，但还没有实机验证。
+</details>
+
+<details>
+<summary><b>关掉终端或电脑休眠会怎样？</b></summary>
+
+连接会断开，ChatGPT 暂时调不到工具。重新运行 `gpt-web-agent connect` 即可。Mac 上可以用 `gpt-web-agent install-service` 设置登录后自动连接。
+</details>
+
+<details>
+<summary><b>GPT 只给方案、不动手？</b></summary>
+
+这条聊天没选中连接。点输入框旁的 **+**，搜索你创建的连接名并选中，再让它先调用 `workspace_info` 试试。
+</details>
+
+<details>
+<summary><b>key 过期了怎么办？</b></summary>
+
+在 Platform 新建一个 key，运行 `gpt-web-agent set-key` 粘贴，再重新运行 `gpt-web-agent connect`。
+</details>
+
+更多问题见[上手教程的排错表](docs/GETTING-STARTED.zh-CN.md#遇到问题)。
+
+## 文档
+
+- [上手教程（带截图）](docs/GETTING-STARTED.zh-CN.md)
+- [图片导入与局部补丁](docs/IMAGES-AND-EDITS.md)
+- [技术参考](docs/REFERENCE.zh-CN.md) · [架构](docs/ARCHITECTURE.md) · [后台运行](docs/BACKGROUND.md)
+- [安全说明](SECURITY.md) · [验证记录](docs/VALIDATION.md) · [贡献指南](CONTRIBUTING.md)
+
+## 许可
+
+[MIT](LICENSE)
