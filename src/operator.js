@@ -93,6 +93,23 @@ async function makeWrapper(base, hostExec) {
   await fs.writeFile(wrapper, `#!/bin/sh\nexec ${shellQuote(node)} ${shellQuote(cliPath)} ${flags.map(shellQuote).join(' ')}\n`, { mode: 0o700, flag: 'wx' });
   return wrapper;
 }
+// The downloader only moves a binary into bin/ after verifying its release archive.
+export async function locateTunnelClient(base, download = downloadOfficialTunnel, searchPath = process.env.PATH) {
+  const onPath = spawnSync('which', ['tunnel-client'], { encoding: 'utf8', env: { ...process.env, PATH: searchPath } });
+  if (onPath.status === 0) return onPath.stdout.trim();
+  const managed = path.join(base, 'bin', 'tunnel-client');
+  try {
+    const stat = await fs.lstat(managed);
+    if (!stat.isFile()) throw new Error(`Managed tunnel-client is not a regular file: ${managed}`);
+    await fs.access(managed, fs.constants.X_OK);
+    const check = spawnSync(managed, ['help', 'quickstart'], { encoding: 'utf8', stdio: 'ignore', timeout: 10000 });
+    if (check.error || check.status !== 0) throw new Error(`Managed tunnel-client cannot run: ${managed}. Inspect or remove it, then retry.`);
+    return managed;
+  }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  process.stdout.write('Downloading the official OpenAI tunnel-client and checking SHA-256...\n');
+  return download(base);
+}
 export async function setup(args, showStartHint = true) {
   const idIndex = args.indexOf('--tunnel-id');
   if (args.length && (idIndex !== 0 || args.length !== 2)) throw new Error('Usage: gpt-web-agent setup [--tunnel-id tunnel_...]');
@@ -110,12 +127,7 @@ export async function setup(args, showStartHint = true) {
   const tunnelId = idIndex === 0 ? args[1] : await askTunnelId();
   validateTunnelId(tunnelId);
   if (!process.stdin.isTTY) throw new Error('Run setup in an interactive terminal so the credential prompt is private');
-  let tunnel;
-  try { tunnel = executable('tunnel-client'); }
-  catch {
-    process.stdout.write('Downloading the official OpenAI tunnel-client and checking SHA-256...\n');
-    tunnel = await downloadOfficialTunnel(base);
-  }
+  const tunnel = await locateTunnelClient(base);
   process.stdout.write('Enable host shell commands? They run with your OS user permissions. Type YES to enable; anything else keeps shell disabled: ');
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const hostExec = (await rl.question('')).trim() === 'YES'; rl.close();

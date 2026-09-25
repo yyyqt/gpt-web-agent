@@ -22,12 +22,12 @@ ChatGPT 订阅和 Platform 隧道权限是两件事。不要仅凭 Plus/Pro 套�
 打开终端，执行一条命令（从本项目 GitHub 仓库安装，不是从 npm 注册表下载）：
 
 ```sh
-npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/heads/main.tar.gz
+npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz
 ```
 
 安装后运行 `gpt-web-agent --help`，看到版本号即成功。Node.js 22+ 仍需预先安装；全局安装如果被系统权限拒绝，应调整自己的 Node/npm 安装方式，不要用 `sudo` 执行本项目。
 
-想检查源码或参与开发，可走[源码安装](../README.zh-CN.md#本地运行)。安装命令成功只证明本地程序可运行，还没有连接 ChatGPT。该命令取的是 GitHub `main` 最新源码；正式 npm 包和固定版本安装尚未提供。
+想检查源码或参与开发，可走[源码安装](../README.zh-CN.md#本地运行)。安装命令成功只证明本地程序可运行，还没有连接 ChatGPT。该命令固定到 GitHub 的 `v0.5.5` tag；正式 npm 包尚未发布。
 
 ## 3. 准备你自己的私有隧道
 
@@ -126,7 +126,7 @@ gpt-web-agent connect
 | 重启电脑后失联 | 运行 `gpt-web-agent connect`，或检查 LaunchAgent；若 key 过期需更新系统凭据 |
 | 图片导入失败 | 需要真实生成文件/附件引用；看 [图片说明](IMAGES-AND-EDITS.md) |
 
-更新 GitHub 安装版：停止自己的服务，重新运行 `npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/heads/main.tar.gz`，再 `gpt-web-agent connect` 并刷新 ChatGPT 工具。已有 LaunchAgent 的启动脚本固定指向安装时的 CLI 路径；更新后应检查服务是否仍指向有效路径。
+更新 GitHub 安装版：停止自己的服务，在[仓库发布页](https://github.com/yyyqt/gpt-web-agent/tags)确认新的版本号，把安装命令中的 `v0.5.5` 改为那个 tag 后重新运行，再 `gpt-web-agent connect` 并刷新 ChatGPT 工具。已有 LaunchAgent 的启动脚本固定指向安装时的 CLI 路径；更新后应检查服务是否仍指向有效路径。
 
 ## 如何分享给朋友
 

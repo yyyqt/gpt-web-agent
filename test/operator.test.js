@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { stateBase } from '../src/operator.js';
+import { stateBase, locateTunnelClient } from '../src/operator.js';
 
 const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
 const mockSecurity = `#!/usr/bin/env node
@@ -142,4 +142,18 @@ test('macOS service installer writes a private plist without a credential', { sk
   assert.equal((await fs.stat(plist)).mode & 0o777, 0o600);
   const lint = await run('/usr/bin/plutil', ['-lint', plist]);
   assert.equal(lint.code, 0, lint.out + lint.err);
+});
+
+test('setup retry reuses a runnable managed tunnel-client and rejects a broken one', async t => {
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), 'bridge-retry-'));
+  t.after(() => fs.rm(base, { recursive: true, force: true }));
+  const managed = path.join(base, 'bin', 'tunnel-client');
+  const failDownload = async () => { throw new Error('download must not run when a managed binary exists'); };
+  let downloads = 0;
+  const firstDownload = async dir => { downloads++; await fs.mkdir(path.join(dir, 'bin')); await fs.writeFile(managed, '#!/bin/sh\nexit 0\n', { mode: 0o700 }); return managed; };
+  assert.equal(await locateTunnelClient(base, firstDownload, '/usr/bin:/bin'), managed);
+  assert.equal(await locateTunnelClient(base, failDownload, '/usr/bin:/bin'), managed);
+  assert.equal(downloads, 1);
+  await fs.writeFile(managed, 'not executable', { mode: 0o700 });
+  await assert.rejects(locateTunnelClient(base, failDownload, '/usr/bin:/bin'), /cannot run/);
 });
