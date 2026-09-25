@@ -31,7 +31,7 @@ If it shows `v22` or higher, continue. If it says "command not found" or the ver
 Then copy this whole command into the terminal and press Return to install the program:
 
 ```sh
-npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz
+npm install --global gpt-web-agent
 ```
 
 Finally run `gpt-web-agent --help`. If you see a list of commands, **the install worked**. ChatGPT is not connected yet.

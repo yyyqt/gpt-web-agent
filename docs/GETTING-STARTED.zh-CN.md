@@ -31,7 +31,7 @@ node --version
 然后复制下面整条命令到终端并回车，安装本程序：
 
 ```sh
-npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz
+npm install --global gpt-web-agent
 ```
 
 最后运行 `gpt-web-agent --help`，能看到一串用法说明就是**安装成功**。此时还没连接 ChatGPT。

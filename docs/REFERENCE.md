@@ -12,13 +12,13 @@ Start with `node src/cli.js --dynamic-projects --allow-host-exec` to let the web
 Give a browser-based AI assistant tools to work on a real local project: read code,
 edit files, run tests, inspect failures, and keep task checkpoints.
 
-**Status: experimental 0.5.5.** Local MCP integration tests and a live ChatGPT web
+**Status: experimental 0.5.6.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
-Not published to npm or the ChatGPT plugin store.
+Not listed in the ChatGPT plugin store.
 
-For the shortest private ChatGPT setup, install directly from GitHub with
-`npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz`, create your
+For the shortest private ChatGPT setup, install from npm with
+`npm install --global gpt-web-agent`, create your
 own Platform tunnel and runtime key, then run `gpt-web-agent connect`. The
 command installs the official tunnel-client automatically if absent and checks
 its release SHA-256. It configures on first run and starts on every run. See

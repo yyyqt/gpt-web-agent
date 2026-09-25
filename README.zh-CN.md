@@ -8,14 +8,14 @@
 
 - 一台 Mac 或 Linux 电脑，安装了 Node.js **22 或更新版本**。Windows 可尝试 WSL，目前没有实机验收。
 - ChatGPT 账户能开启开发者模式；OpenAI Platform 账户能在 [Tunnels 页面](https://platform.openai.com/settings/organization/tunnels)看到 **Create tunnel**。**ChatGPT 订阅不等于拥有 Platform 隧道权限**，先确认这一点再安装。个人账户最方便；公司或学校账户可能需要管理员开通并关联工作区。
-- 每位使用者在自己的电脑上安装，用自己的账户建立连接。本仓库不是替别人托管电脑的在线服务。目前尚未发布到 npm 或 ChatGPT 插件商店。
+- 每位使用者在自己的电脑上安装，用自己的账户建立连接。本仓库不是替别人托管电脑的在线服务，也尚未上架 ChatGPT 插件商店。
 
 ## 安装与连接
 
 1. **安装程序。** 打开终端，运行 `node --version` 确认是 `v22` 或更高；没有 Node 时先按 [Node.js 官方指引](https://nodejs.org/en/download)安装。然后运行：
 
    ```sh
-   npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz
+   npm install --global gpt-web-agent
    gpt-web-agent --help
    ```
 

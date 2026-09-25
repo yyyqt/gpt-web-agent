@@ -8,14 +8,14 @@ Let ChatGPT on the web read and edit local project files, run commands and tests
 
 - A Mac or Linux computer with **Node.js 22 or newer**. Windows may work through WSL, but has not been tested on a real machine.
 - A ChatGPT account that can enable developer mode and an OpenAI Platform account that shows **Create tunnel** on the [Tunnels page](https://platform.openai.com/settings/organization/tunnels). **A ChatGPT subscription alone does not grant Platform tunnel access.** Check this before installing. Personal accounts are the easiest route; company or school accounts may need an admin to enable access and associate the workspace.
-- Each person installs the bridge on their own computer and connects with their own account. This repository is not a hosted service that connects to other people's computers. It is not yet published to npm or the ChatGPT plugin store.
+- Each person installs the bridge on their own computer and connects with their own account. This repository is not a hosted service that connects to other people's computers. It is not listed in the ChatGPT plugin store.
 
 ## Install and connect
 
 1. **Install the program.** Open a terminal and run `node --version` to check for `v22` or higher. If needed, follow the [official Node.js installation instructions](https://nodejs.org/en/download). Then run:
 
    ```sh
-   npm install --global --ignore-scripts https://github.com/yyyqt/gpt-web-agent/archive/refs/tags/v0.5.5.tar.gz
+   npm install --global gpt-web-agent
    gpt-web-agent --help
    ```
 
