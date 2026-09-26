@@ -32,8 +32,17 @@ node --version
 然后复制下面整条命令到终端并回车，安装本程序：
 
 ```sh
-npm install --global gpt-web-agent
+npm install --global gpt-web-agent@latest
 ```
+
+Windows PowerShell：
+
+```powershell
+npm.cmd install --global gpt-web-agent@latest
+gpt-web-agent.cmd connect
+```
+
+升级旧版也使用上面的安装命令；`gpt-web-agent --help` 应显示 0.6.0 或更高。升级后重启连接，已有隧道和 key 配置会保留。
 
 最后运行 `gpt-web-agent --help`，能看到一串用法说明就是**安装成功**。此时还没连接 ChatGPT。
 

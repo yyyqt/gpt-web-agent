@@ -55,8 +55,17 @@ It's a small program (an MCP server) running on your computer, connected to your
 **1. Install** (Node.js 22+, macOS, Linux, or native Windows)
 
 ```sh
-npm install --global gpt-web-agent
+npm install --global gpt-web-agent@latest
 ```
+
+Windows PowerShell:
+
+```powershell
+npm.cmd install --global gpt-web-agent@latest
+gpt-web-agent.cmd connect
+```
+
+Use the same install command to upgrade. `gpt-web-agent --help` should report 0.6.0 or newer. Restart the connection after upgrading; existing tunnel and key configuration is preserved.
 
 **2. Create a tunnel and a key in OpenAI Platform**
 
@@ -134,6 +143,7 @@ More in the [setup guide's troubleshooting table](docs/GETTING-STARTED.md#troubl
 ## Documentation
 
 - [Setup guide with screenshots](docs/GETTING-STARTED.md)
+- [Windows setup and separate machine connections (Chinese)](docs/WINDOWS.md)
 - [Image imports and partial edits](docs/IMAGES-AND-EDITS.md)
 - [Technical reference](docs/REFERENCE.md) · [Architecture](docs/ARCHITECTURE.md) · [Running in the background](docs/BACKGROUND.md)
 - [Security](SECURITY.md) · [Validation record](docs/VALIDATION.md) · [Contributing](CONTRIBUTING.md)

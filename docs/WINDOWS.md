@@ -32,8 +32,8 @@ Windows 登录自启、原生 Codex 委派和 ARM64 真机尚未验收。不要�
 有效期由创建 key 时的账户配置决定，7 天不是 Windows 限制。过期后，在 Platform 创建新的受限 key，再运行：
 
 ```powershell
-node src/cli.js set-key
-node src/cli.js connect
+gpt-web-agent.cmd set-key
+gpt-web-agent.cmd connect
 ```
 
 无需重建项目或删除隧道。不要把 key 发进聊天或提交到 Git。

@@ -55,8 +55,17 @@ GPT： [修改 src/image.js] [运行 npm test] 测试通过。改动了 2 个文
 **1. 安装**（需要 Node.js 22+，支持 Mac、Linux 和原生 Windows）
 
 ```sh
-npm install --global gpt-web-agent
+npm install --global gpt-web-agent@latest
 ```
+
+Windows PowerShell：
+
+```powershell
+npm.cmd install --global gpt-web-agent@latest
+gpt-web-agent.cmd connect
+```
+
+升级旧版也使用上面的安装命令；`gpt-web-agent --help` 应显示 0.6.0 或更高。升级后重启连接，已有隧道和 key 配置会保留。
 
 **2. 在 OpenAI Platform 创建隧道和 key**
 
@@ -134,6 +143,7 @@ gpt-web-agent connect
 ## 文档
 
 - [上手教程（带截图）](docs/GETTING-STARTED.zh-CN.md)
+- [Windows 使用与双电脑连接](docs/WINDOWS.md)
 - [图片导入与局部补丁](docs/IMAGES-AND-EDITS.md)
 - [技术参考](docs/REFERENCE.zh-CN.md) · [架构](docs/ARCHITECTURE.md) · [后台运行](docs/BACKGROUND.md)
 - [安全说明](SECURITY.md) · [验证记录](docs/VALIDATION.md) · [贡献指南](CONTRIBUTING.md)

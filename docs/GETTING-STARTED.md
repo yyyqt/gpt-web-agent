@@ -32,8 +32,17 @@ If it shows `v22` or higher, continue. If it says "command not found", "not reco
 Then copy this whole command into the terminal and press Return to install the program:
 
 ```sh
-npm install --global gpt-web-agent
+npm install --global gpt-web-agent@latest
 ```
+
+Windows PowerShell:
+
+```powershell
+npm.cmd install --global gpt-web-agent@latest
+gpt-web-agent.cmd connect
+```
+
+Use the same install command to upgrade. `gpt-web-agent --help` should report 0.6.0 or newer. Restart the connection after upgrading; existing tunnel and key configuration is preserved.
 
 Finally run `gpt-web-agent --help`. If you see a list of commands, **the install worked**. ChatGPT is not connected yet.
 

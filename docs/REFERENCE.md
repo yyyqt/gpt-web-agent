@@ -12,7 +12,7 @@ Start with `node src/cli.js --dynamic-projects --allow-host-exec` to let the web
 Give a browser-based AI assistant tools to work on a real local project: read code,
 edit files, run tests, inspect failures, and keep task checkpoints.
 
-**Status: experimental 0.5.6.** Local MCP integration tests and a live ChatGPT web
+**Status: 0.6.0, published on npm.** Local MCP integration tests and a live ChatGPT web
 code-edit/test/fix workflow pass; see [validation](VALIDATION.md).
 Source: [yyyqt/gpt-web-agent](https://github.com/yyyqt/gpt-web-agent).
 Not listed in the ChatGPT plugin store.
