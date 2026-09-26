@@ -39,7 +39,7 @@ Windows PowerShell：
 
 ```powershell
 npm.cmd install --global gpt-web-agent@latest
-gpt-web-agent.cmd connect
+gpt-web-agent.cmd --help
 ```
 
 升级旧版也使用上面的安装命令；`gpt-web-agent --help` 应显示 0.6.0 或更高。升级后重启连接，已有隧道和 key 配置会保留。
@@ -82,6 +82,8 @@ gpt-web-agent.cmd connect
 ```sh
 gpt-web-agent connect
 ```
+
+Windows PowerShell 用 `gpt-web-agent.cmd connect`。
 
 它会依次问你三件事：
 

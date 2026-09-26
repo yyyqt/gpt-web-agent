@@ -39,7 +39,7 @@ Windows PowerShell:
 
 ```powershell
 npm.cmd install --global gpt-web-agent@latest
-gpt-web-agent.cmd connect
+gpt-web-agent.cmd --help
 ```
 
 Use the same install command to upgrade. `gpt-web-agent --help` should report 0.6.0 or newer. Restart the connection after upgrading; existing tunnel and key configuration is preserved.
@@ -82,6 +82,8 @@ Back in the terminal, run:
 ```sh
 gpt-web-agent connect
 ```
+
+In Windows PowerShell, use `gpt-web-agent.cmd connect`.
 
 It asks you three things, in this order:
 
