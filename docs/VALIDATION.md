@@ -183,3 +183,10 @@ and lookalike-host rejection, signed-query redaction, and real PNG decoding/impo
 ## Repository integration check (2026-09-26)
 
 The Windows task history patches were reconstructed on macOS after the remote synchronization turn did not return a commit. `npm run check` passed: 36 total, 34 passed, 2 Windows-only tests skipped, 0 failed. Windows results above are from the referenced Windows task, not a new Mac-hosted Windows run. The Windows source changes are not yet an npm release.
+
+## 0.6.0 release checks (2026-09-26)
+
+- The Windows CI reconnect test previously assumed a job finished after 1.2 seconds. It now polls to a bounded deadline and cleans up the complete Windows server process tree. Workflow jobs have a five-minute timeout so failures cannot silently hang indefinitely.
+- Release commit `ba0a9bb` passed all six GitHub CI combinations: macOS, Linux and Windows with Node 22 and 24. Each includes checks, dependency audit and package dry-run. Workflow: https://github.com/yyyqt/gpt-web-agent/actions/runs/36217957454.
+- npm accepted `gpt-web-agent@0.6.0` after browser 2FA; processing delayed registry visibility for several minutes. The official registry subsequently returned version 0.6.0 and its tarball, and the latest tag now resolves to 0.6.0. Git tag `v0.6.0` points to the release commit.
+- Native Windows autostart and Codex delegation remain unavailable; Windows ARM64 has asset-selection coverage but no real-machine acceptance.
