@@ -1,3 +1,4 @@
+import { commandSpec, processEnvironment } from './windows.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -207,7 +208,7 @@ export class Runtime {
     this.writable();
     if (!this.allowHostExec) fail('EXEC_DISABLED', 'Restart with --allow-host-exec to permit unsandboxed commands');
     if (typeof command !== 'string' || !command.length || command.length > 16000) fail('INVALID_COMMAND', 'Command must be 1-16000 characters');
-    return this.startProcess({ executable: '/bin/sh', args: ['-c', command], cwd, timeoutSeconds, kind: 'shell' });
+    return this.startProcess({ ...commandSpec(command), cwd, timeoutSeconds, kind: 'shell' });
   }
   async startCodex({ prompt, userRequestedDelegation = false, cwd = '.', timeoutSeconds = Math.min(1800, this.limits.timeoutSeconds) }) {
     this.writable();
@@ -238,9 +239,9 @@ export class Runtime {
     job.done = new Promise(resolve => { job.finish = resolve; });
     job.launch = () => {
     job.status = 'running'; job.startedAt = new Date().toISOString();
-    const env = { PATH: process.env.PATH || '/usr/bin:/bin', HOME: this.root, TMPDIR: process.env.TMPDIR || '/tmp', LANG: 'en_US.UTF-8' };
+    const env = processEnvironment(this.root);
     if (kind === 'codex') { env.HOME = os.homedir(); if (process.env.CODEX_HOME) env.CODEX_HOME = process.env.CODEX_HOME; }
-    const child = spawn(executable, args, { cwd: working, env, detached: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
+    const child = spawn(executable, args, { cwd: working, env, detached: process.platform !== 'win32', windowsHide: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
     if (input !== undefined) { child.stdin.on('error', e => { if (e.code !== 'EPIPE') process.stderr.write(`Codex stdin error: ${e.message}\n`); }); child.stdin.end(input); }
     job.child = child;
     const decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') };
@@ -317,7 +318,13 @@ export class Runtime {
     } else if (job.status === 'running') {
       job.status = status;
       // Kill the process group, not just the shell. Host commands can still escape deliberately.
-      try { process.kill(-job.child.pid, 'SIGKILL'); }
+      try {
+        if (process.platform === 'win32') {
+          const killer = spawn('taskkill.exe', ['/PID', String(job.child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+          killer.on('error', error => { job.persistenceWarning = `Could not terminate process tree: ${error.message}`; job.child.kill(); });
+          killer.on('close', code => { if (code !== 0 && job.child.exitCode === null) job.child.kill(); });
+        } else process.kill(-job.child.pid, 'SIGKILL');
+      }
       catch (e) { if (e.code !== 'ESRCH') throw e; }
     }
     return this.job(id);

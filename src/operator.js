@@ -4,6 +4,7 @@ import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
+import { windowsCredential } from './windows.js';
 import { downloadOfficialTunnel } from './tunnel-download.js';
 
 const PROFILE = 'gpt-web-agent';
@@ -11,9 +12,11 @@ const SERVICE = 'gpt-web-agent-tunnel';
 const cliPath = fileURLToPath(new URL('cli.js', import.meta.url));
 const configBase = () => process.platform === 'darwin'
   ? path.join(os.homedir(), 'Library', 'Application Support', 'gpt-web-agent')
+  : process.platform === 'win32' ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'gpt-web-agent')
   : path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'gpt-web-agent');
 export const stateBase = (platform = process.platform, home = os.homedir(), xdgStateHome = process.env.XDG_STATE_HOME) => platform === 'darwin'
   ? path.join(home, 'Library', 'Application Support', 'gpt-web-agent', 'local-state')
+  : platform === 'win32' ? path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'gpt-web-agent', 'local-state')
   : path.join(xdgStateHome || path.join(home, '.local', 'state'), 'gpt-web-agent');
 const run = (file, args, options = {}) => new Promise((resolve, reject) => {
   const child = spawn(file, args, { stdio: 'inherit', ...options });
@@ -26,9 +29,9 @@ const capture = (file, args) => {
   return result.stdout.trimEnd();
 };
 const executable = name => {
-  const result = spawnSync('which', [name], { encoding: 'utf8' });
+  const result = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', [name], { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`${name} is not on PATH. Install it from its official release and retry.`);
-  return result.stdout.trim();
+  return result.stdout.trim().split(/\r?\n/)[0];
 };
 const shellQuote = value => `'${value.replaceAll("'", "'\\''")}'`;
 const account = () => os.userInfo().username;
@@ -54,7 +57,7 @@ async function readCredential() {
         for (const char of chunk.toString()) {
           if (char === '\r' || char === '\n') { process.stdin.off('data', onData); process.stdin.setRawMode(false); process.stdin.pause(); process.stdout.write('\n'); resolve(value); return; }
           if (char === '\u0003') { process.stdin.off('data', onData); process.stdin.setRawMode(false); process.stdin.pause(); reject(new Error('Cancelled')); return; }
-          if (char === '\u007f') value = value.slice(0, -1);
+          if (char === '\u007f' || char === '\b') value = value.slice(0, -1);
           else value += char;
         }
       };
@@ -65,7 +68,7 @@ async function readCredential() {
 }
 async function saveCredential() {
   if (process.platform === 'darwin') executable('security');
-  else executable('secret-tool');
+  else if (process.platform !== 'win32') executable('secret-tool');
   const secret = await readCredential();
   if (process.platform === 'darwin') {
     // `security -w` truncates long interactive keys; use the command interpreter's
@@ -74,6 +77,10 @@ async function saveCredential() {
     const command = `add-generic-password -U -a ${account()} -s ${serviceName()} -X ${Buffer.from(secret).toString('hex')}\n`;
     const result = spawnSync('security', ['-i'], { input: command, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 16384 });
     if (result.error || result.status !== 0 || loadCredential() !== secret) throw new Error('macOS Keychain update failed or saved key did not match');
+  } else if (process.platform === 'win32') {
+    await fs.mkdir(configBase(), { recursive: true });
+    windowsCredential(path.join(configBase(), 'runtime-key.dpapi'), secret);
+    if (loadCredential() !== secret) throw new Error('Windows saved key did not match');
   } else {
     const child = spawn('secret-tool', ['store', '--label=GPT Web Agent tunnel', 'application', 'gpt-web-agent', 'account', account()], { stdio: ['pipe', 'inherit', 'inherit'] });
     child.stdin.end(secret);
@@ -83,22 +90,27 @@ async function saveCredential() {
 function loadCredential() {
   const secret = process.platform === 'darwin'
     ? capture('security', ['find-generic-password', '-a', account(), '-s', serviceName(), '-w'])
+    : process.platform === 'win32' ? windowsCredential(path.join(configBase(), 'runtime-key.dpapi'))
     : capture('secret-tool', ['lookup', 'application', 'gpt-web-agent', 'account', account()]);
   if (!secret) throw new Error('Saved tunnel key is empty; rerun setup');
   return secret;
 }
 async function makeWrapper(base, hostExec) {
   const node = executable('node');
-  const wrapper = path.join(base, 'mcp-server.sh');
+  const wrapper = path.join(base, process.platform === 'win32' ? 'mcp-server.mjs' : 'mcp-server.sh');
   const flags = ['--dynamic-projects', ...(hostExec ? ['--allow-host-exec'] : []), '--max-concurrent', '4', '--max-seconds', '7200', '--max-output-bytes', '1048576', '--max-file-bytes', '4194304'];
+  if (process.platform === 'win32') {
+    await fs.writeFile(wrapper, `process.argv = [process.execPath, ${JSON.stringify(cliPath)}, ...${JSON.stringify(flags)}];\nawait import(${JSON.stringify(new URL('cli.js', import.meta.url).href)});\n`, { flag: 'wx' });
+    return wrapper;
+  }
   await fs.writeFile(wrapper, `#!/bin/sh\nexec ${shellQuote(node)} ${shellQuote(cliPath)} ${flags.map(shellQuote).join(' ')}\n`, { mode: 0o700, flag: 'wx' });
   return wrapper;
 }
 // The downloader only moves a binary into bin/ after verifying its release archive.
 export async function locateTunnelClient(base, download = downloadOfficialTunnel, searchPath = process.env.PATH) {
-  const onPath = spawnSync('which', ['tunnel-client'], { encoding: 'utf8', env: { ...process.env, PATH: searchPath } });
-  if (onPath.status === 0) return onPath.stdout.trim();
-  const managed = path.join(base, 'bin', 'tunnel-client');
+  const onPath = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['tunnel-client'], { encoding: 'utf8', env: { ...process.env, PATH: searchPath } });
+  if (onPath.status === 0) return onPath.stdout.trim().split(/\r?\n/)[0];
+  const managed = path.join(base, 'bin', process.platform === 'win32' ? 'tunnel-client.exe' : 'tunnel-client');
   try {
     const stat = await fs.lstat(managed);
     if (!stat.isFile()) throw new Error(`Managed tunnel-client is not a regular file: ${managed}`);
@@ -119,7 +131,7 @@ export async function setup(args, showStartHint = true) {
   const existing = path.join(profileDir, `${PROFILE}.yaml`);
   try { await fs.access(existing); throw new Error('Existing profile found. Inspect it before replacing or remove it explicitly.'); }
   catch (e) { if (e.code !== 'ENOENT') throw e; }
-  const wrapper = path.join(base, 'mcp-server.sh');
+  const wrapper = path.join(base, process.platform === 'win32' ? 'mcp-server.mjs' : 'mcp-server.sh');
   try { await fs.access(wrapper); throw new Error('Existing MCP wrapper found. Inspect it before replacing or remove it explicitly.'); }
   catch (e) { if (e.code !== 'ENOENT') throw e; }
   const tunnelPathRecord = path.join(base, 'tunnel-path');
@@ -137,7 +149,7 @@ export async function setup(args, showStartHint = true) {
     await fs.mkdir(profileDir, { mode: 0o700, recursive: true });
     await makeWrapper(base, hostExec);
     await fs.writeFile(tunnelPathRecord, tunnel + '\n', { mode: 0o600, flag: 'wx' });
-    await run(tunnel, ['init', '--sample', 'sample_mcp_stdio_local', '--profile', PROFILE, '--profile-dir', profileDir, '--tunnel-id', tunnelId, '--mcp-command', shellQuote(wrapper)], { env: { ...process.env, CONTROL_PLANE_API_KEY: loadCredential() } });
+    await run(tunnel, ['init', '--sample', 'sample_mcp_stdio_local', '--profile', PROFILE, '--profile-dir', profileDir, '--tunnel-id', tunnelId, '--mcp-command', process.platform === 'win32' ? `${shellQuote(process.execPath)} ${shellQuote(wrapper)}` : shellQuote(wrapper)], { env: { ...process.env, CONTROL_PLANE_API_KEY: loadCredential() } });
   } catch (error) {
     await Promise.allSettled([fs.rm(wrapper, { force: true }), fs.rm(tunnelPathRecord, { force: true })]);
     throw error;

@@ -1,3 +1,4 @@
+import { powershell, psQuote } from './windows.js';
 import fs from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import path from 'node:path';
@@ -16,10 +17,10 @@ async function response(url, fetcher) {
 }
 
 export function releaseAssets(release, platform = process.platform, arch = process.arch) {
-  if (!['darwin', 'linux'].includes(platform) || !['arm64', 'x64'].includes(arch)) throw new Error(`No supported tunnel-client build for ${platform}/${arch}`);
+  if (!['darwin', 'linux', 'win32'].includes(platform) || !['arm64', 'x64'].includes(arch)) throw new Error(`No supported tunnel-client build for ${platform}/${arch}`);
   const tag = release.tag_name;
   if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error('Unexpected official tunnel-client release tag');
-  const filename = `tunnel-client-${tag}-${platform}-${arch === 'x64' ? 'amd64' : 'arm64'}.zip`;
+  const filename = `tunnel-client-${tag}-${platform === 'win32' ? 'windows' : platform}-${arch === 'x64' ? 'amd64' : 'arm64'}.zip`;
   const prefix = `https://github.com/openai/tunnel-client/releases/download/${tag}/`;
   const asset = release.assets?.find(item => item.name === filename && item.browser_download_url === prefix + filename);
   const sums = release.assets?.find(item => item.name === 'SHA256SUMS.txt' && item.browser_download_url === prefix + 'SHA256SUMS.txt');
@@ -39,7 +40,7 @@ export async function downloadOfficialTunnel(base, fetcher = fetch) {
   await fs.mkdir(base, { recursive: true, mode: 0o700 });
   const temp = await fs.mkdtemp(path.join(base, 'download-'));
   const archive = path.join(temp, filename);
-  const binary = path.join(temp, 'tunnel-client');
+  const binary = path.join(temp, process.platform === 'win32' ? 'tunnel-client.exe' : 'tunnel-client');
   try {
     const assetResponse = await response(asset.browser_download_url, fetcher);
     const hash = createHash('sha256');
@@ -51,7 +52,9 @@ export async function downloadOfficialTunnel(base, fetcher = fetch) {
     } });
     await pipeline(Readable.fromWeb(assetResponse.body), limit, createWriteStream(archive, { mode: 0o600 }));
     if (hash.digest('hex') !== expected) throw new Error('Official tunnel-client archive SHA-256 mismatch');
-    await new Promise((resolve, reject) => {
+    if (process.platform === 'win32') {
+      powershell(`Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=[IO.Compression.ZipFile]::OpenRead(${psQuote(archive)}); try { $entry=$zip.GetEntry('tunnel-client.exe'); if ($null -eq $entry -or $entry.Length -gt 100000000) { throw 'Missing or oversized tunnel-client.exe' }; [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,${psQuote(binary)},$false) } finally { $zip.Dispose() }`);
+    } else await new Promise((resolve, reject) => {
       const child = spawn('unzip', ['-p', archive, 'tunnel-client'], { stdio: ['ignore', 'pipe', 'pipe'] });
       let error = '';
       child.stderr.on('data', chunk => { error += chunk; });
@@ -66,7 +69,7 @@ export async function downloadOfficialTunnel(base, fetcher = fetch) {
     if (!stat.isFile() || stat.size < 100000) throw new Error('Official archive did not contain a valid tunnel-client binary');
     const destination = path.join(base, 'bin');
     await fs.mkdir(destination, { recursive: true, mode: 0o700 });
-    const installed = path.join(destination, 'tunnel-client');
+    const installed = path.join(destination, process.platform === 'win32' ? 'tunnel-client.exe' : 'tunnel-client');
     try { await fs.access(installed); throw new Error('Managed tunnel-client already exists; inspect it before replacing'); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
     await fs.rename(binary, installed);
