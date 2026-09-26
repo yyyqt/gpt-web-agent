@@ -6,7 +6,7 @@
   <a href="https://www.npmjs.com/package/gpt-web-agent"><img src="https://img.shields.io/npm/v/gpt-web-agent?color=34d399&label=npm" alt="npm 版本"></a>
   <a href="https://github.com/yyyqt/gpt-web-agent/actions/workflows/ci.yml"><img src="https://github.com/yyyqt/gpt-web-agent/actions/workflows/ci.yml/badge.svg" alt="测试状态"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22-38bdf8" alt="Node.js 22+">
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-64748b" alt="macOS | Linux">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-64748b" alt="macOS | Linux | Windows">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-64748b" alt="MIT"></a>
 </p>
 
@@ -46,12 +46,14 @@ GPT： [修改 src/image.js] [运行 npm test] 测试通过。改动了 2 个文
 - **关网页也不中断**：已经开始的测试、构建会在电脑上继续跑，回来再问结果。
 - **不碰你的账号**：不代理 ChatGPT、不读取浏览器 Cookie，只走 OpenAI 官方隧道。
 
+> **Windows 版本状态：** 原生适配已通过真机网页验收，尚未发布到 npm；npm 的 0.5.6 不含这些修复。请先按 [Windows 使用说明](docs/WINDOWS.md) 从适配分支安装。下方 npm 安装命令目前用于 macOS/Linux。
+
 ## 快速开始
 
 > [!IMPORTANT]
 > 请用**个人**账户，并先确认两件事：ChatGPT「设置 → 账户安全与登录」里有**开发者模式**；[Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) 里能点 **Create tunnel**。ChatGPT 订阅不等于有隧道权限；公司或学校账户通常要管理员开通。
 
-**1. 安装**（需要 Node.js 22+，Mac 或 Linux）
+**1. 安装**（需要 Node.js 22+，支持 Mac、Linux 和原生 Windows）
 
 ```sh
 npm install --global gpt-web-agent
@@ -92,7 +94,7 @@ gpt-web-agent connect
 > [!WARNING]
 > 开启“运行命令”后，GPT 执行的命令和你自己在终端里敲的**权限一样大**，不是沙箱。只在自己的连接里使用；处理敏感项目时，可以不开启命令，只用文件读写。
 
-- 运行 key 存在 macOS 钥匙串或 Linux 系统密码库，不写进配置文件或仓库。
+- 运行 key 存在 macOS 钥匙串、Linux 系统密码库，或由 Windows DPAPI 按当前用户加密保存；不会以明文写进配置文件或仓库。
 - 连接只通过 OpenAI 官方私有隧道，不在公网开放端口。**不要**自己把本地服务映射到公网。
 - 更多细节见[安全说明](SECURITY.md)。
 
@@ -107,7 +109,7 @@ gpt-web-agent connect
 <details>
 <summary><b>Windows 能用吗？</b></summary>
 
-目前支持 macOS 和 Linux。Windows 可以尝试在 WSL 里运行，但还没有实机验证。
+支持原生 Windows。命令执行使用 Windows PowerShell，隧道 key 使用 DPAPI 加密，并下载 OpenAI 官方 Windows 版 tunnel-client。原生 Windows 暂不支持本地 Codex 委托和 `install-service`，但这不影响网页读写文件、执行命令和跑测试。
 </details>
 
 <details>

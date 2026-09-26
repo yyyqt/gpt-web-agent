@@ -8,7 +8,7 @@
 
 **你需要：**
 
-- 一台 Mac 或 Linux 电脑（Windows 可以试试 WSL，尚未实测）。
+- 一台 Mac、Linux 或 Windows 电脑。
 - 一个 **个人** ChatGPT 账户，以及同一账户登录的 [OpenAI Platform](https://platform.openai.com/)。
 - 大约 15 分钟。
 
@@ -16,9 +16,11 @@
 
 **开始安装前，先打开 [Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) 看能否创建隧道。** ChatGPT 订阅不等于已获得隧道权限；如果没有 **Create tunnel**，先解决账户或组织权限，下面的安装步骤暂时无法完成。
 
+> **Windows 版本状态：** 原生适配已通过真机网页验收，尚未发布到 npm；npm 的 0.5.6 不含这些修复。请先按 [Windows 使用说明](WINDOWS.md) 从适配分支安装。下方 npm 安装命令目前用于 macOS/Linux。
+
 ## 1. 打开终端，安装程序
 
-Mac 上按 **Command（⌘）+ 空格**，输入 **终端**（或 Terminal），按回车。Linux 打开系统自带的终端。
+Mac 上按 **Command（⌘）+ 空格**，输入 **终端**（或 Terminal），按回车；Linux 打开系统自带的终端；Windows 从开始菜单打开 **Windows PowerShell**。
 
 在终端输入下面这行并回车，检查有没有装 Node.js：
 
@@ -26,7 +28,7 @@ Mac 上按 **Command（⌘）+ 空格**，输入 **终端**（或 Terminal），
 node --version
 ```
 
-显示 `v22` 或更大的数字就可以继续。显示“command not found”或版本太低，就先装 Node.js：已经装过 Homebrew 的 Mac 运行 `brew install node`；否则到 [Node.js 下载页](https://nodejs.org/en/download)按指引安装。装完**关掉终端再重新打开**，再检查一次。
+显示 `v22` 或更大的数字就可以继续。显示“command not found”“无法识别”或版本太低，就先装 Node.js：已经装过 Homebrew 的 Mac 运行 `brew install node`；否则到 [Node.js 下载页](https://nodejs.org/en/download)按指引安装。装完**关掉终端再重新打开**，再检查一次。
 
 然后复制下面整条命令到终端并回车，安装本程序：
 
@@ -78,7 +80,7 @@ gpt-web-agent connect
 1. **隧道 ID**：粘贴上一步的 `tunnel_...`，回车。
 2. **是否允许 GPT 在电脑上运行命令**：想让 GPT 帮你跑测试、装依赖，就输入大写 `YES` 回车；只想让它读写文件，直接回车。
    允许后，GPT 能运行的命令权限和你自己在终端里一样大。只在你自己的连接里用。
-3. **运行 key**：粘贴上一步的 `sk-...`，回车。**粘贴时屏幕上不会显示任何字符，这是正常的。** key 会存进 Mac 的“钥匙串”（Linux 是系统密码库），以后不用再输。
+3. **运行 key**：粘贴上一步的 `sk-...`，回车。**粘贴时屏幕上不会显示任何字符，这是正常的。** key 会存进 Mac 的“钥匙串”、Linux 系统密码库，或由 Windows DPAPI 按当前用户加密保存，以后不用再输。
 
 第一次运行时，它会自动从 OpenAI 官方下载隧道程序并校验文件。成功时终端大概是这样（中间省略了一些日志）：
 
@@ -154,11 +156,19 @@ Configured. Starting the tunnel now...
 
 电脑要开机、联网，终端要开着。关掉网页不会中断已经在电脑上跑的命令。
 
+### 在 Mac 和 Windows 之间选择
+
+每台电脑使用独立的隧道 ID 和 ChatGPT 连接，例如 `GPT Web Agent — Mac` 与 `GPT Web Agent — Windows`。各自在自己的电脑上运行 `connect`；不要让两台电脑使用同一条隧道作为切换方式。运行密钥也建议分别创建、保存和轮换；仅设置 Tunnels Read/Use 权限并不表示密钥被限制为只能使用某一个隧道。
+
+在 ChatGPT 中新建聊天，从输入框旁的 **+** 菜单选择目标连接。建议分别保留 Mac 和 Windows 聊天，每个聊天只选择一个机器连接。自然语言里的“切到 Windows”不会替你改变聊天选中的连接；先选对连接，再要求调用 `workspace_info` 核对 `platform`（Windows 为 `win32`，Mac 为 `darwin`）和工作目录。旧版 Mac 运行时可能没有平台字段，需核对其工作目录或升级后再验证。两台电脑可同时保持连接；切换不需要停止另一台，但离线机器不可用。
+
+参见[官方连接测试说明](https://developers.openai.com/plugins/deploy/connect-chatgpt)和[私有隧道说明](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)。
+
 ### 进阶（不是必需的）
 
 - **开机自动连接（仅 Mac）**：运行 `gpt-web-agent install-service`，再按屏幕提示复制运行一条 `launchctl` 命令。之后每次登录电脑都会自动连接，不用再开终端。Linux 见[后台运行说明](BACKGROUND.md)。
 - **更换 key**：key 过期或想换新的，运行 `gpt-web-agent set-key`，粘贴新 key，再重新运行 `connect`（用了开机自动连接的话，重启一下电脑）。
-- **交给本地 Codex 执行**：默认是网页里的 GPT 直接操作。你另外装好并登录了 Codex 的话，可以按[技术参考](REFERENCE.zh-CN.md)开启委托。
+- **交给本地 Codex 执行（macOS/Linux）**：默认是网页里的 GPT 直接操作。你另外装好并登录了 Codex 的话，可以按[技术参考](REFERENCE.zh-CN.md)开启委托；原生 Windows 暂不暴露这个可选工具。
 
 ### 遇到问题
 

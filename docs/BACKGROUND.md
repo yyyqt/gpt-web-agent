@@ -10,7 +10,8 @@ For official Secure MCP Tunnel, supervise the **tunnel client**; it owns the
 stdio runtime process. A foreground terminal must remain open. A terminal
 multiplexer or your OS service manager can own that process instead. On macOS,
 a LaunchAgent can run the exact `tunnel-client run --config /absolute/private.yaml`
-command; on Linux use a user systemd service. Keep configs and logs private and
+command; on Linux use a user systemd service. On Windows, keep the PowerShell
+window running; this project does not currently install a scheduled task or service. Keep configs and logs private and
 use absolute paths and an explicit PATH including Node and Codex. Do not place
 runtime keys in public unit files or the repository. No autostart service is
 installed by this project automatically.

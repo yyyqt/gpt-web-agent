@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Runtime } from '../src/runtime.js';
+import { delayCommand, nodeCommand } from './support.js';
 
 async function fixture(t, options = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'web-agent-test-'));
@@ -32,7 +33,7 @@ test('denies traversal, private files, symlink escapes, hardlinks and binary dat
     await assert.rejects(r.resolve(p, { missing: true }), code('PATH_DENIED'));
   }
   for (const p of ['/etc/passwd', 'a\\b', 'a\0b']) await assert.rejects(r.resolve(p), code('INVALID_PATH'));
-  await fs.symlink(os.tmpdir(), path.join(r.root, 'escape'));
+  await fs.symlink(os.tmpdir(), path.join(r.root, 'escape'), process.platform === 'win32' ? 'junction' : undefined);
   await assert.rejects(r.write({ path: 'escape/nope', content: 'x', expectedSha256: null }), code('SYMLINK_DENIED'));
   await fs.writeFile(path.join(r.root, 'real'), 'private');
   await fs.link(path.join(r.root, 'real'), path.join(r.root, 'alias'));
@@ -67,35 +68,35 @@ test('command success, failure, environment isolation, timeout, cancellation, bo
   const r = await fixture(t, { allowHostExec: true });
   process.env.WEB_AGENT_TEST_SECRET = 'must-not-inherit';
   t.after(() => delete process.env.WEB_AGENT_TEST_SECRET);
-  const j = await r.startJob({ command: 'printf "%s" "${WEB_AGENT_TEST_SECRET-unset}"; printf "err" >&2; exit 7' });
+  const j = await r.startJob({ command: nodeCommand("process.stdout.write(process.env.WEB_AGENT_TEST_SECRET ?? 'unset'); process.stderr.write('err'); process.exit(7)") });
   await r.jobs.get(j.id).done;
   assert.equal(r.job(j.id).stdout, 'unset'); assert.equal(r.job(j.id).stderr, 'err');
   assert.equal(r.job(j.id).exitCode, 7); assert.equal(r.job(j.id).status, 'failed');
   const out = await r.startJob({ command: 'node -e "process.stdout.write(\'x\'.repeat(200000))"' });
   await r.jobs.get(out.id).done;
   assert.equal(r.job(out.id).stdout.length, 131072); assert.equal(r.job(out.id).truncated, true);
-  const slow = await r.startJob({ command: 'sleep 30', timeoutSeconds: 1 });
+  const slow = await r.startJob({ command: delayCommand(30000), timeoutSeconds: 1 });
   await r.jobs.get(slow.id).done; assert.equal(r.job(slow.id).status, 'timed_out');
-  const cancelled = await r.startJob({ command: 'sleep 30' });
+  const cancelled = await r.startJob({ command: delayCommand(30000) });
   r.stopJob(cancelled.id); await r.jobs.get(cancelled.id).done;
   assert.equal(r.job(cancelled.id).status, 'cancelled');
-  const good = await r.startJob({ command: 'printf ok' }); await r.jobs.get(good.id).done;
+  const good = await r.startJob({ command: nodeCommand("process.stdout.write('ok')") }); await r.jobs.get(good.id).done;
   assert.equal(r.job(good.id).status, 'succeeded'); assert.equal(r.job(good.id).stdout, 'ok');
 });
 
 test('concurrent cap, FIFO queue, cancellation and shutdown cleanup', async t => {
   const r = await fixture(t, { allowHostExec: true, limits: { concurrency: 1 } });
-  const first = await r.startJob({ command: 'sleep 30' });
-  const second = await r.startJob({ command: 'printf second' });
-  const third = await r.startJob({ command: 'printf third' });
+  const first = await r.startJob({ command: delayCommand(30000) });
+  const second = await r.startJob({ command: nodeCommand("process.stdout.write('second')") });
+  const third = await r.startJob({ command: nodeCommand("process.stdout.write('third')") });
   assert.equal(r.job(first.id).status, 'running');
   assert.equal(r.job(second.id).status, 'queued');
   r.stopJob(first.id);
   await r.jobs.get(second.id).done; await r.jobs.get(third.id).done;
   assert.equal(r.job(second.id).stdout, 'second');
   assert.equal(r.job(third.id).stdout, 'third');
-  const fourth = await r.startJob({ command: 'sleep 30' });
-  const fifth = await r.startJob({ command: 'touch must-not-run' });
+  const fourth = await r.startJob({ command: delayCommand(30000) });
+  const fifth = await r.startJob({ command: nodeCommand("require('node:fs').writeFileSync('must-not-run', '')") });
   await r.close();
   assert.equal(r.job(fourth.id).status, 'cancelled');
   assert.equal(r.job(fifth.id).status, 'cancelled');
@@ -110,7 +111,8 @@ test('audit contains metadata only, unsafe state and corruption are explicit err
   await fs.writeFile(path.join(r.state, 'tasks.json'), '{broken');
   await assert.rejects(r.tasks(), SyntaxError);
   await fs.rm(path.join(r.state, 'audit.jsonl'));
-  await fs.symlink(path.join(r.root, 'victim'), path.join(r.state, 'audit.jsonl'));
+  if (process.platform === 'win32') { await fs.writeFile(path.join(r.root, 'victim'), 'private'); await fs.link(path.join(r.root, 'victim'), path.join(r.state, 'audit.jsonl')); }
+  else await fs.symlink(path.join(r.root, 'victim'), path.join(r.state, 'audit.jsonl'));
   await assert.rejects(r.audit('write_file', 'started'), code('UNSAFE_STATE'));
 });
 
@@ -120,7 +122,7 @@ test('shutdown racing an in-flight start cannot create a surviving command', asy
   let release;
   const gate = new Promise(resolve => { release = resolve; });
   r.resolve = async (...args) => { await gate; return original(...args); };
-  const starting = r.startJob({ command: 'sleep 30' });
+  const starting = r.startJob({ command: delayCommand(30000) });
   await r.close(); release();
   await assert.rejects(starting, code('SHUTTING_DOWN'));
   assert.equal(r.jobs.size, 0);
@@ -130,18 +132,20 @@ test('configured limits enforce runtime boundaries and results survive restart',
   assert.throws(() => new Runtime('/tmp', { limits: { concurrency: 0 } }), code('INVALID_LIMIT'));
   const r = await fixture(t, { allowHostExec: true, limits: { concurrency: 1, timeoutSeconds: 3600, fileBytes: 2097152, outputBytes: 262144 } });
   await r.write({ path: 'large.txt', content: 'x'.repeat(1100000), expectedSha256: null });
-  const j = await r.startJob({ command: 'printf persisted', timeoutSeconds: 1200 });
+  const j = await r.startJob({ command: nodeCommand("process.stdout.write('persisted')"), timeoutSeconds: 1200 });
   await r.jobs.get(j.id).done;
   await r.close();
   const next = new Runtime(r.root); await next.init();
   assert.equal(next.job(j.id).stdout, 'persisted');
   assert.equal(next.listJobs()[0].status, 'succeeded');
-  assert.equal((await fs.stat(path.join(r.state, `job-${j.id}.json`))).mode & 0o777, 0o600);
+  const persisted = await fs.stat(path.join(r.state, `job-${j.id}.json`));
+  assert.equal(persisted.isFile(), true);
+  if (process.platform !== 'win32') assert.equal(persisted.mode & 0o777, 0o600);
   await assert.rejects(r.startJob({ command: 'true', timeoutSeconds: 3601 }), code('INVALID_TIMEOUT'));
   await next.close();
 });
 
-test('Codex delegation uses stdin, workspace sandbox and explicit opt-in', async t => {
+test('Codex delegation uses stdin, workspace sandbox and explicit opt-in', { skip: process.platform === 'win32' }, async t => {
   const r = await fixture(t, { allowCodex: true });
   const fake = path.join(r.root, 'fake-codex');
   await fs.writeFile(fake, '#!/bin/sh\nprintf "%s\\n" "$@"\ncat\n', { mode: 0o700 });
@@ -162,7 +166,7 @@ test('Codex delegation uses stdin, workspace sandbox and explicit opt-in', async
 
 test('unfinished saved jobs recover as interrupted, never rerun or signal stale PIDs', async t => {
   const r = await fixture(t, { allowHostExec: true });
-  const j = await r.startJob({ command: 'printf done' }); await r.jobs.get(j.id).done; await r.close();
+  const j = await r.startJob({ command: nodeCommand("process.stdout.write('done')") }); await r.jobs.get(j.id).done; await r.close();
   const p = path.join(r.state, `job-${j.id}.json`);
   const saved = JSON.parse(await fs.readFile(p, 'utf8')); saved.status = 'running'; await fs.writeFile(p, JSON.stringify(saved));
   const next = new Runtime(r.root); await next.init();
@@ -173,7 +177,7 @@ test('unfinished saved jobs recover as interrupted, never rerun or signal stale 
 
 test('default runs four jobs and queues the fifth; queued cancellation never launches', async t => {
   const r = await fixture(t, { allowHostExec: true });
-  const jobs = await Promise.all(Array.from({ length: 5 }, () => r.startJob({ command: 'sleep 30' })));
+  const jobs = await Promise.all(Array.from({ length: 5 }, () => r.startJob({ command: delayCommand(30000) })));
   assert.equal(jobs.filter(j => j.status === 'running').length, 4);
   assert.equal(jobs.filter(j => j.status === 'queued').length, 1);
   const queued = jobs.find(j => j.status === 'queued');
@@ -184,8 +188,8 @@ test('default runs four jobs and queues the fifth; queued cancellation never lau
 
 test('execution timeout begins on launch, not while queued', async t => {
   const r = await fixture(t, { allowHostExec: true, limits: { concurrency: 1 } });
-  const first = await r.startJob({ command: 'sleep 1.2', timeoutSeconds: 3 });
-  const second = await r.startJob({ command: 'printf after-wait', timeoutSeconds: 1 });
+  const first = await r.startJob({ command: delayCommand(1200), timeoutSeconds: 3 });
+  const second = await r.startJob({ command: nodeCommand("process.stdout.write('after-wait')"), timeoutSeconds: 1 });
   assert.equal(second.status, 'queued');
   await r.jobs.get(first.id).done; await r.jobs.get(second.id).done;
   assert.equal(r.job(second.id).status, 'succeeded');

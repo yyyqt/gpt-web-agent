@@ -4,7 +4,7 @@ First-time setup: [Chinese illustrated guide](GETTING-STARTED.zh-CN.md).
 
 ## Local paths mode (0.5.5)
 
-Start with `node src/cli.js --dynamic-projects --allow-host-exec` to let the web model discover and work on local projects without registering or switching them. File paths, directory paths, image destinations and command `cwd` accept absolute paths; relative paths use the home directory reported by `workspace_info`. There is no per-call project parameter or mutable global project. All commands share the concurrency limit. Private file names, parent traversal and symlinks remain excluded by file tools; host shell is still unsandboxed. State lives in `~/Library/Application Support/gpt-web-agent/local-state` on macOS or `$XDG_STATE_HOME/gpt-web-agent` (default `~/.local/state/gpt-web-agent`) on Linux; previous fixed-root state is left intact and can be inspected using the old `--root` mode. Existing `--root` mode remains supported.
+Start with `node src/cli.js --dynamic-projects --allow-host-exec` to let the web model discover and work on local projects without registering or switching them. File paths, directory paths, image destinations and command `cwd` accept absolute paths, including native `C:\\...` paths on Windows; relative paths use the home directory reported by `workspace_info`. There is no per-call project parameter or mutable global project. All commands share the concurrency limit. Private file names, parent traversal and symlinks remain excluded by file tools; host shell is still unsandboxed. State lives in `~/Library/Application Support/gpt-web-agent/local-state` on macOS, `$XDG_STATE_HOME/gpt-web-agent` (default `~/.local/state/gpt-web-agent`) on Linux, or `%LOCALAPPDATA%\\gpt-web-agent\\local-state` on Windows; previous fixed-root state is left intact and can be inspected using the old `--root` mode. Existing `--root` mode remains supported.
 
 
 [中文说明](../README.zh-CN.md)
@@ -41,7 +41,7 @@ This project does **not** promise unlimited tokens or bypass account limits.
 
 ## Quick start
 
-Requirements: Node.js 22+, macOS or Linux for shell execution. Use a disposable
+Requirements: Node.js 22+ on macOS, Linux, or Windows. Use a disposable
 project directory for first use. Clone this repository or extract its source archive, then run:
 
 ```sh
@@ -49,6 +49,14 @@ npm ci --ignore-scripts
 npm run check
 mkdir -p /tmp/bridge-demo
 node src/cli.js --root /tmp/bridge-demo
+```
+
+On Windows PowerShell, create and start the demo with:
+
+```powershell
+$demo = Join-Path $env:TEMP 'bridge-demo'
+New-Item -ItemType Directory -Force $demo
+node src/cli.js --root $demo
 ```
 
 The default transport is MCP stdio: it waits for an MCP client, not terminal input.
@@ -110,6 +118,8 @@ Direct execution by the web model is the default. Delegate only when the user ex
 --sandbox workspace-write`; no shell interpolation or bypass flag. The CLI uses
 its existing login and default model, not the global user's MCP/model/hook config.
 Project-level Codex policies can still apply. Codex consumes its own account quota.
+
+`--allow-codex` is currently limited to macOS/Linux. On native Windows, use the normal file and command tools; they cover the documented edit/test workflow.
 
 ```sh
 node src/cli.js --root /absolute/project --allow-host-exec --allow-codex \

@@ -4,7 +4,7 @@ import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
-import { windowsCredential } from './windows.js';
+import { windowsCredential, psQuote } from './windows.js';
 import { downloadOfficialTunnel } from './tunnel-download.js';
 
 const PROFILE = 'gpt-web-agent';
@@ -14,10 +14,12 @@ const configBase = () => process.platform === 'darwin'
   ? path.join(os.homedir(), 'Library', 'Application Support', 'gpt-web-agent')
   : process.platform === 'win32' ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'gpt-web-agent')
   : path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'gpt-web-agent');
-export const stateBase = (platform = process.platform, home = os.homedir(), xdgStateHome = process.env.XDG_STATE_HOME) => platform === 'darwin'
-  ? path.join(home, 'Library', 'Application Support', 'gpt-web-agent', 'local-state')
-  : platform === 'win32' ? path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'gpt-web-agent', 'local-state')
-  : path.join(xdgStateHome || path.join(home, '.local', 'state'), 'gpt-web-agent');
+export const stateBase = (platform = process.platform, home = os.homedir(), xdgStateHome = process.env.XDG_STATE_HOME, localAppData = process.env.LOCALAPPDATA) => {
+  const paths = platform === 'win32' ? path.win32 : path.posix;
+  if (platform === 'darwin') return paths.join(home, 'Library', 'Application Support', 'gpt-web-agent', 'local-state');
+  if (platform === 'win32') return paths.join(localAppData || paths.join(home, 'AppData', 'Local'), 'gpt-web-agent', 'local-state');
+  return paths.join(xdgStateHome || paths.join(home, '.local', 'state'), 'gpt-web-agent');
+};
 const run = (file, args, options = {}) => new Promise((resolve, reject) => {
   const child = spawn(file, args, { stdio: 'inherit', ...options });
   child.once('error', reject);
@@ -34,6 +36,9 @@ const executable = name => {
   return result.stdout.trim().split(/\r?\n/)[0];
 };
 const shellQuote = value => `'${value.replaceAll("'", "'\\''")}'`;
+export const startCommandHint = (platform = process.platform, node = process.execPath, cli = cliPath) => platform === 'win32'
+  ? `& ${psQuote(node)} ${psQuote(cli)} start`
+  : `${shellQuote(node)} ${shellQuote(cli)} start`;
 const account = () => os.userInfo().username;
 const serviceName = () => `gpt-web-agent-tunnel-${account()}`;
 
@@ -95,7 +100,7 @@ function loadCredential() {
   if (!secret) throw new Error('Saved tunnel key is empty; rerun setup');
   return secret;
 }
-async function makeWrapper(base, hostExec) {
+export async function makeWrapper(base, hostExec) {
   const node = executable('node');
   const wrapper = path.join(base, process.platform === 'win32' ? 'mcp-server.mjs' : 'mcp-server.sh');
   const flags = ['--dynamic-projects', ...(hostExec ? ['--allow-host-exec'] : []), '--max-concurrent', '4', '--max-seconds', '7200', '--max-output-bytes', '1048576', '--max-file-bytes', '4194304'];
@@ -154,7 +159,7 @@ export async function setup(args, showStartHint = true) {
     await Promise.allSettled([fs.rm(wrapper, { force: true }), fs.rm(tunnelPathRecord, { force: true })]);
     throw error;
   }
-  process.stdout.write(showStartHint ? `Configured. Run: ${shellQuote(process.execPath)} ${shellQuote(cliPath)} start\n` : 'Configured. Starting the tunnel now...\n');
+  process.stdout.write(showStartHint ? `Configured. Run: ${startCommandHint()}\n` : 'Configured. Starting the tunnel now...\n');
 }
 export async function start() {
   let tunnel;

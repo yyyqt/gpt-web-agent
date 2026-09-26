@@ -6,7 +6,7 @@ When you finish this guide, you can tell ChatGPT "find my XXX project, fix it an
 
 **You need:**
 
-- A Mac or Linux computer (Windows users can try WSL; not tested yet).
+- A Mac, Linux, or Windows computer.
 - A **personal** ChatGPT account, and [OpenAI Platform](https://platform.openai.com/) signed in with the same account.
 - About 15 minutes.
 
@@ -16,9 +16,11 @@ When you finish this guide, you can tell ChatGPT "find my XXX project, fix it an
 
 The screenshots below were taken in the Chinese ChatGPT interface; the English button names are given in the text.
 
+> **Windows release status:** Native support passed real-machine ChatGPT acceptance but is not published to npm yet. npm 0.5.6 does not include these fixes. Use the source branch instructions in [Windows setup](WINDOWS.md) for now. The npm install command below currently applies to macOS/Linux.
+
 ## 1. Open a terminal and install the program
 
-On a Mac, press **Command (⌘) + Space**, type **Terminal**, and press Return. On Linux, open your system's terminal.
+On a Mac, press **Command (⌘) + Space**, type **Terminal**, and press Return. On Linux, open your system's terminal. On Windows, open **Windows PowerShell** from the Start menu.
 
 Type this and press Return to check whether Node.js is installed:
 
@@ -26,7 +28,7 @@ Type this and press Return to check whether Node.js is installed:
 node --version
 ```
 
-If it shows `v22` or higher, continue. If it says "command not found" or the version is lower, install Node.js first: on a Mac with Homebrew, run `brew install node`; otherwise follow the [Node.js download page](https://nodejs.org/en/download). After installing, **close the terminal, open a new one**, and check again.
+If it shows `v22` or higher, continue. If it says "command not found", "not recognized", or the version is lower, install Node.js first: on a Mac with Homebrew, run `brew install node`; otherwise follow the [Node.js download page](https://nodejs.org/en/download). After installing, **close the terminal, open a new one**, and check again.
 
 Then copy this whole command into the terminal and press Return to install the program:
 
@@ -78,7 +80,7 @@ It asks you three things, in this order:
 1. **Tunnel ID**: paste the `tunnel_...` from step 2 and press Return.
 2. **Allow GPT to run commands on this computer?** If you want GPT to run tests or install dependencies, type `YES` in capitals and press Return. If you only want it to read and write files, just press Return.
    Commands GPT runs have the same power as commands you type in your own terminal. Only use this with your own connection.
-3. **Runtime key**: paste the `sk-...` from step 2 and press Return. **Nothing appears on screen while you paste; that's normal.** The key is stored in the macOS Keychain (on Linux, the system password store), so you won't need to type it again.
+3. **Runtime key**: paste the `sk-...` from step 2 and press Return. **Nothing appears on screen while you paste; that's normal.** The key is stored in the macOS Keychain, the Linux system password store, or a Windows DPAPI CurrentUser-encrypted file, so you won't need to type it again.
 
 On the first run it automatically downloads OpenAI's official tunnel program and verifies the file. A successful run looks roughly like this (some log lines omitted):
 
@@ -154,11 +156,19 @@ After starting your computer, run `gpt-web-agent connect` and keep the terminal 
 
 Your computer must be on and online, and the terminal must stay open. Closing the web page doesn't stop commands already running on your computer.
 
+### Choosing between Mac and Windows
+
+Use a separate tunnel ID and ChatGPT connection for each computer, such as `GPT Web Agent — Mac` and `GPT Web Agent — Windows`. Run `connect` on each host with its own configuration; do not use a shared tunnel as a host switch. Separate runtime keys also make rotation easier. Tunnels Read/Use permissions alone do not scope a key to one particular tunnel.
+
+Start a ChatGPT conversation and select the target connection from the **+** menu beside the message box. Prefer separate Mac and Windows conversations, each with only one machine connection selected. Saying “switch to Windows” does not change the selected connection for you. Select it first, then call `workspace_info` and check `platform` (`win32` for Windows, `darwin` for Mac) and the workspace path before editing. Older Mac runtimes may not return the platform field; verify the workspace or upgrade first. Both computers can stay connected at once; switching does not require stopping the other host, but an offline host is unavailable.
+
+See the official [connection testing guide](https://developers.openai.com/plugins/deploy/connect-chatgpt) and [private tunnel guide](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels).
+
 ### Optional extras
 
 - **Connect automatically at login (Mac only)**: run `gpt-web-agent install-service`, then copy and run the `launchctl` command it prints. After that it connects every time you log in, with no terminal needed. For Linux, see [running in the background](BACKGROUND.md).
 - **Replace the key**: if the key expires or you want a new one, run `gpt-web-agent set-key`, paste the new key, then run `connect` again (if you use automatic connection, restart your computer).
-- **Hand work to local Codex**: by default the GPT in the web page does the work itself. If you've installed and signed in to Codex, see the [technical reference](REFERENCE.md) to enable delegation.
+- **Hand work to local Codex (macOS/Linux)**: by default the GPT in the web page does the work itself. If you've installed and signed in to Codex, see the [technical reference](REFERENCE.md) to enable delegation. Native Windows does not expose this optional tool yet.
 
 ### Troubleshooting
 

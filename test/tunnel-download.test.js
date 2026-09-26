@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 import { downloadOfficialTunnel, releaseAssets } from '../src/tunnel-download.js';
 
 const tag = 'v1.2.3';
-const filename = `tunnel-client-${tag}-${process.platform}-${process.arch === 'x64' ? 'amd64' : 'arm64'}.zip`;
+const releasePlatform = process.platform === 'win32' ? 'windows' : process.platform;
+const filename = `tunnel-client-${tag}-${releasePlatform}-${process.arch === 'x64' ? 'amd64' : 'arm64'}.zip`;
 const prefix = `https://github.com/openai/tunnel-client/releases/download/${tag}/`;
 const release = { tag_name: tag, assets: [
   { name: filename, browser_download_url: prefix + filename, size: 100 },
@@ -33,5 +34,5 @@ test('download rejects a bad SHA-256 before unpacking or installing', async t =>
     throw new Error(`Unexpected URL: ${url}`);
   };
   await assert.rejects(downloadOfficialTunnel(base, fetcher), /SHA-256 mismatch/);
-  await assert.rejects(fs.access(path.join(base, 'bin', 'tunnel-client')), /ENOENT/);
+  await assert.rejects(fs.access(path.join(base, 'bin', process.platform === 'win32' ? 'tunnel-client.exe' : 'tunnel-client')), /ENOENT/);
 });

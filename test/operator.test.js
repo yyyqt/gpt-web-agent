@@ -144,7 +144,7 @@ test('macOS service installer writes a private plist without a credential', { sk
   assert.equal(lint.code, 0, lint.out + lint.err);
 });
 
-test('setup retry reuses a runnable managed tunnel-client and rejects a broken one', async t => {
+test('setup retry reuses a runnable managed tunnel-client and rejects a broken one', { skip: process.platform === 'win32' }, async t => {
   const base = await fs.mkdtemp(path.join(os.tmpdir(), 'bridge-retry-'));
   t.after(() => fs.rm(base, { recursive: true, force: true }));
   const managed = path.join(base, 'bin', 'tunnel-client');

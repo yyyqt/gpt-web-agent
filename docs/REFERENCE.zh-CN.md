@@ -25,7 +25,7 @@
 
 ## 本地运行
 
-需要 Node.js 22+。命令执行目前面向 macOS/Linux；Windows 可在 WSL 中运行，但尚未实测。
+需要 Node.js 22+，支持 macOS、Linux 和原生 Windows。Windows 命令通过非交互 Windows PowerShell 执行，并保留原生命令的退出码。
 先在本项目目录中执行：
 
 ```sh
@@ -33,6 +33,14 @@ npm ci --ignore-scripts
 npm run check
 mkdir -p /tmp/bridge-demo
 node src/cli.js --root /tmp/bridge-demo
+```
+
+Windows PowerShell 用下面的命令创建并启动演示目录：
+
+```powershell
+$demo = Join-Path $env:TEMP 'bridge-demo'
+New-Item -ItemType Directory -Force $demo
+node src/cli.js --root $demo
 ```
 
 默认是 MCP stdio 服务，需要客户端连接，不是可直接输入指令的聊天窗口。
@@ -79,6 +87,8 @@ node src/cli.js --root /absolute/project --allow-host-exec --allow-codex \
 `codex exec --ignore-user-config --sandbox workspace-write`，复用登录但不加载
 个人全局配置里的其他 MCP 服务、模型覆盖或钩子。项目内 Codex 规则仍可能生效。
 模型使用 CLI 默认值；不要把不可信仓库当作隔离环境。
+
+`--allow-codex` 目前仅支持 macOS/Linux。原生 Windows 请使用常规文件和命令工具，它们已经覆盖本文的修改与测试流程。
 
 工具立即返回任务 ID，使用 `get_command` 查看进度与退出码；`list_commands`
 可找回重连前的任务。最多保留 100 个结果，命令与 Codex 共用并发额度。

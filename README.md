@@ -6,7 +6,7 @@
   <a href="https://www.npmjs.com/package/gpt-web-agent"><img src="https://img.shields.io/npm/v/gpt-web-agent?color=34d399&label=npm" alt="npm version"></a>
   <a href="https://github.com/yyyqt/gpt-web-agent/actions/workflows/ci.yml"><img src="https://github.com/yyyqt/gpt-web-agent/actions/workflows/ci.yml/badge.svg" alt="tests"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22-38bdf8" alt="Node.js 22+">
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-64748b" alt="macOS | Linux">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-64748b" alt="macOS | Linux | Windows">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-64748b" alt="MIT"></a>
 </p>
 
@@ -46,12 +46,14 @@ It's a small program (an MCP server) running on your computer, connected to your
 - **Keeps running when you close the tab**: tests and builds already started keep running on your computer; ask for the result later.
 - **Leaves your account alone**: no ChatGPT proxying, no browser cookies, only OpenAI's official tunnel.
 
+> **Windows release status:** Native support passed real-machine ChatGPT acceptance but is not published to npm yet. npm 0.5.6 does not include these fixes. Use the source branch instructions in [Windows setup](docs/WINDOWS.md) for now. The npm install command below currently applies to macOS/Linux.
+
 ## Quick start
 
 > [!IMPORTANT]
 > Use a **personal** account and check two things first: ChatGPT **Settings → Security and login** has **Developer mode**, and [Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) lets you click **Create tunnel**. A ChatGPT subscription does not by itself grant tunnel access; company or school accounts usually need an admin.
 
-**1. Install** (Node.js 22+, macOS or Linux)
+**1. Install** (Node.js 22+, macOS, Linux, or native Windows)
 
 ```sh
 npm install --global gpt-web-agent
@@ -92,7 +94,7 @@ Screenshots of every screen, success checks and troubleshooting are in the **[se
 > [!WARNING]
 > With commands enabled, anything GPT runs has **the same power as commands you type in your own terminal**. It is not a sandbox. Use it only with your own connection; for sensitive projects you can leave commands off and use file tools only.
 
-- The runtime key lives in the macOS Keychain or the Linux system password store, never in config files or the repository.
+- The runtime key lives in the macOS Keychain, Linux system password store, or a Windows DPAPI CurrentUser-encrypted file, never as plaintext in config files or the repository.
 - The connection goes only through OpenAI's official private tunnel; no port is opened to the internet. **Never** expose the local server to the internet yourself.
 - See the [security notes](SECURITY.md) for details.
 
@@ -107,7 +109,7 @@ The project is free and open source and calls no model API. You need a ChatGPT a
 <details>
 <summary><b>Does it work on Windows?</b></summary>
 
-macOS and Linux are supported. Windows may work under WSL, but hasn't been tested on a real machine.
+Yes. Native Windows uses Windows PowerShell for opted-in commands, DPAPI for the tunnel key, and the official Windows tunnel-client build. Local Codex delegation and `install-service` are not yet available on native Windows; the file and command workflow does not require either feature.
 </details>
 
 <details>

@@ -22,7 +22,8 @@ a multi-tenant hosted execution service.
 - Command annotations are hints to the client, not server-side authorization.
   Keep the client's normal write-action confirmations enabled. This server does
   not implement per-command local human approval.
-- SIGKILL targets the process group on timeout/cancel/shutdown. Programs can
+- SIGKILL targets the process group on macOS/Linux; Windows uses `taskkill /T /F`
+  and serializes process-tree cleanup during shutdown. Programs can
   intentionally escape groups or daemonize. No comprehensive descendant tracking,
   CPU/memory quotas, network sandbox or durable process recovery is implemented.
 - HTTP listens only on 127.0.0.1, rejects Origin headers and unexpected Host values,
@@ -42,7 +43,7 @@ shell can change it. Runtime failures are returned explicitly; a final audit err
 after a successful mutation warns the client not to blindly retry.
 
 Job result files store bounded stdout/stderr and may contain sensitive output.
-They are created with mode 600, retained for up to 100 jobs, and never belong in Git.
+They are created with mode 600 where POSIX modes apply, retained for up to 100 jobs, and never belong in Git.
 `--allow-codex` separately opts into local Codex with real user HOME/login state;
 it uses workspace-write, not the host shell's unrestricted mode. The bridge does
 not strengthen or replace Codex's own sandbox. Project instructions can affect it.

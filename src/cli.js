@@ -21,7 +21,7 @@ Usage: gpt-web-agent setup [--tunnel-id tunnel_...]
   --transport stdio|http  Default: stdio. HTTP binds ONLY to 127.0.0.1.
   --port 8788            Local HTTP port (1024-65535).
   --read-only            Expose no file/task mutations or command tools.
-  --allow-host-exec      Enable UNSANDBOXED host shell execution (macOS/Linux).
+  --allow-host-exec      Enable UNSANDBOXED host shell execution.
   --allow-codex          Enable local Codex tasks using existing login, workspace-write.
   --codex-bin PATH       Codex executable (default: codex from PATH).
   --max-seconds N        Max job lifetime, 1-86400 (default 600).
@@ -53,7 +53,7 @@ async function main() {
   if (!values['dynamic-projects'] && (!values.root || !path.isAbsolute(values.root))) throw new Error('--root must be an explicit absolute directory');
   if (!['stdio', 'http'].includes(values.transport)) throw new Error('--transport must be stdio or http');
   if (values['read-only'] && (values['allow-host-exec'] || values['allow-codex'])) throw new Error('--read-only conflicts with execution options');
-  if ((values['allow-host-exec'] || values['allow-codex']) && process.platform === 'win32') throw new Error('Host execution requires macOS/Linux; use WSL on Windows');
+  if (values['allow-codex'] && process.platform === 'win32') throw new Error('Codex delegation is not yet supported on native Windows; omit --allow-codex or use WSL');
   const limits = {};
   for (const [flag, key] of Object.entries({ 'max-seconds': 'timeoutSeconds', 'max-concurrent': 'concurrency', 'max-output-bytes': 'outputBytes', 'max-file-bytes': 'fileBytes' })) {
     if (values[flag] !== undefined) { if (!/^\d+$/.test(values[flag])) throw new Error(`--${flag} must be an integer`); limits[key] = Number(values[flag]); }

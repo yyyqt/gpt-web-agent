@@ -19,16 +19,41 @@ export function windowsCredential(file, secret) {
   return powershell(`Add-Type -AssemblyName System.Security; $encrypted=[IO.File]::ReadAllBytes(${target}); $bytes=[Security.Cryptography.ProtectedData]::Unprotect($encrypted,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Write([Text.Encoding]::UTF8.GetString($bytes))`);
 }
 export function commandSpec(command, platform = process.platform) {
-  return platform === 'win32'
-    ? { executable: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command] }
-    : { executable: '/bin/sh', args: ['-c', command] };
+  if (platform !== 'win32') return { executable: '/bin/sh', args: ['-c', command] };
+  // Windows PowerShell otherwise reports success when the final native command
+  // exits non-zero, and its redirected output may use a legacy code page.
+  const script = [
+    "$ErrorActionPreference='Stop'",
+    "$ProgressPreference='SilentlyContinue'",
+    "$OutputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)",
+    `& { ${command} }`,
+    'if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }',
+  ].join('; ');
+  return {
+    executable: 'powershell.exe',
+    args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
+  };
 }
 export function processEnvironment(root, platform = process.platform, source = process.env) {
   const env = { PATH: source.PATH || '/usr/bin:/bin', HOME: root, TMPDIR: source.TMPDIR || '/tmp', LANG: 'en_US.UTF-8' };
   if (platform === 'win32') {
-    for (const key of ['SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT', 'TEMP', 'TMP', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE']) if (source[key]) env[key] = source[key];
-    env.PATH = source.PATH || source.Path || '';
+    for (const key of ['SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT', 'TEMP', 'TMP', 'APPDATA', 'LOCALAPPDATA']) if (source[key]) env[key] = source[key];
+    const systemRoot = source.SystemRoot || source.WINDIR || path.win32.join(path.win32.parse(process.execPath).root, 'Windows');
+    env.SystemRoot ||= systemRoot;
+    env.WINDIR ||= systemRoot;
+    env.COMSPEC ||= path.win32.join(systemRoot, 'System32', 'cmd.exe');
+    env.PATHEXT ||= '.COM;.EXE;.BAT;.CMD';
+    env.PATH = [...new Set([
+      path.win32.dirname(process.execPath),
+      ...(source.PATH || source.Path || '').split(path.win32.delimiter).filter(Boolean),
+      path.win32.join(systemRoot, 'System32'),
+      systemRoot,
+    ])].join(path.win32.delimiter);
     env.USERPROFILE = root;
+    const parsed = path.win32.parse(root);
+    env.HOMEDRIVE = parsed.root.slice(0, 2);
+    env.HOMEPATH = root.slice(parsed.root.length - 1);
+    env.TMPDIR = source.TEMP || source.TMP || root;
   }
   return env;
 }

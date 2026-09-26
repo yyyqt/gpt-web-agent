@@ -4,6 +4,18 @@ Privacy-cropped onboarding screenshots in `docs/assets/` show the current Platfo
 
 On 2026-09-25, the logged-in Chinese ChatGPT interface was rechecked: Settings contains a Plugins tab, opening an installed connection there shows separate read/write tool lists, and the new MCP app form contains the checkbox “我了解并希望继续”. The chat picker screenshot now shows the real plus menu and search prompt without the author's old connection name. No new ChatGPT connection was created during this documentation check.
 
+## Native Windows branch validation (2026-09-26)
+
+- Local platform: Windows x64, Node.js 23.8.0, npm 10.9.2. Final `npm run check` passed with 36 tests: 29 passed, 7 platform-specific tests skipped, and 0 failed. The suite includes real stdio and HTTP MCP edit/fail/fix/pass loops, native absolute paths, UTF-8 command output, native exit-code propagation, timeout/cancellation, DPAPI roundtrip, the generated Windows stdio wrapper, and a PowerShell-safe setup start hint.
+- `npm audit --omit=dev` reported 0 vulnerabilities and `npm pack --dry-run` listed the expected 44 package files without creating or publishing a tarball.
+- The real official Windows x64 `tunnel-client` release was downloaded through the production downloader, checked against `SHA256SUMS.txt`, extracted with the Windows code path, and executed successfully with `help quickstart`. The installed executable was 22,523,904 bytes. This proves the Windows release path, not an authenticated tunnel by itself.
+- An initial ChatGPT-originated read-only `workspace_info` call reached the existing macOS runtime (`/Users/<user>`), not this Windows machine. No file or command actions were requested against that runtime. With user approval, a separate Windows tunnel and development-only ChatGPT connection, `Web Agent Bridge — Windows`, were created without changing the Mac connection. Capability discovery now includes `platform` and `architecture` to distinguish the connected host reliably.
+- The authenticated official client (0.0.15) started with a runtime key encrypted locally by DPAPI. Its local `/readyz` returned HTTP 200. The key has only Tunnels Read/Use and a seven-day expiry; no plaintext key was written to the repository, profile, task report, or tool transcript. The tunnel profile references the key through `env:CONTROL_PLANE_API_KEY`.
+- In ChatGPT Chat with Pro selected and the Windows connection attached, `workspace_info` returned `platform=win32`, `architecture=x64`, `hostExecution=true`, `workspace=C:\\Users\\<user>`, `sandboxed=false`, and `codexEnabled=false`. ChatGPT created `sum.mjs` and `sum.test.mjs` in a new disposable demo directory using `write_file`, then called `start_command` for `node --test sum.test.mjs` and polled to completion. First job `b8b81f4e-292c-4dbc-a165-0954638e64c9`: exit 1, 0 passed / 2 failed. ChatGPT read the source hash and used `patch_file` to change subtraction to addition. Second job `95c60748-9f56-4572-9757-141d0e151ec6`: exit 0, 2 passed / 0 failed. The test file was not changed. Local file reads, SHA-256 checks, persisted job records, and an independent local rerun confirmed the web results.
+- Fixed source SHA-256: `25457087337699136d7c54a0d6e713b53ff7b22302a9b31511a9598b1988e52b`. ChatGPT-originated native environment job `e242c845-c292-4e2f-98a2-d9f3902a1137` exited 0 and produced `win32`, `x64`, the Windows demo cwd, and intact `Windows 原生中文😀`. ChatGPT read complete output pages and saved checkpoint `windows-native-acceptance-20260926-95c60748` as completed, revision 1; local task and audit records confirm it.
+- Core Windows file/command/test web acceptance passed. No commit, push, merge, npm publication, or public ChatGPT distribution was performed. Windows login-time service installation, native Codex delegation, long-duration reliability, and Windows CI execution on GitHub remain unverified; the CI matrix was edited locally only.
+- With the Windows client still running, a separate ChatGPT conversation attached to the original Mac connection returned `/Users/<user>` and `hostExecution=true` from a single read-only `workspace_info` call. No Mac file or command actions were requested. This checks independent simultaneous connections, not automatic natural-language host switching.
+
 ## Version 0.5.5 setup retry fix (2026-09-25)
 
 - A first setup can stop after the official client has downloaded, before the tunnel profile is ready. `locateTunnelClient` now reuses the managed binary on retry after checking that it is a regular executable file and that `help quickstart` succeeds. A broken file produces an explicit error instead of being silently reused.
@@ -20,7 +32,7 @@ On 2026-09-25, the logged-in Chinese ChatGPT interface was rechecked: Settings c
 - `set-key` updates the saved credential without rewriting the tunnel profile, wrapper, or path record. The macOS setup and rotation tests pass 164-byte synthetic keys through an interactive pseudo-terminal and verify the full value reached the Keychain command interpreter over stdin.
 - A real 164-byte runtime key exposed a macOS `security -w` prompt truncation at 128 bytes. After switching to `security -i` with `-X` data sent only on stdin, the stored Keychain value matched the original key byte-for-byte. During storage, the key was not placed in argv, environment variables, logs, or repository files. The existing `start` flow supplies it to the tunnel process through `CONTROL_PLANE_API_KEY` at runtime.
 - With the real private tunnel, `tunnel-client doctor` passed; `gpt-web-agent start` returned HTTP 200 from `/readyz` without a credential error. The macOS LaunchAgent ran with the saved PATH, also returned HTTP 200 from `/readyz`, and `npm test` passed under that exact PATH in a minimal environment. The temporary LaunchAgent was then unloaded and removed; the pre-existing manual tunnel remained running.
-- In a fresh ChatGPT 6 Pro chat, the installed Web Agent Bridge reached the new runtime: `workspace_info` reported `hostExecution=true`, `codexEnabled=false`, and workspace `/Users/yang`. ChatGPT then called `start_command` for `npm test` in this public repository and polled to completion. The web response reported `succeeded`, exit code 0, and 28 passing tests; the new runtime's local job record independently confirms the same result. The temporary LaunchAgent was unloaded and removed after the test; the pre-existing manual tunnel remains running.
+- In a fresh ChatGPT 6 Pro chat, the installed Web Agent Bridge reached the new runtime: `workspace_info` reported `hostExecution=true`, `codexEnabled=false`, and workspace `/Users/<user>`. ChatGPT then called `start_command` for `npm test` in this public repository and polled to completion. The web response reported `succeeded`, exit code 0, and 28 passing tests; the new runtime's local job record independently confirms the same result. The temporary LaunchAgent was unloaded and removed after the test; the pre-existing manual tunnel remains running.
 - npm publication remains unavailable because the local npm CLI is not authenticated. The `gpt-web-agent` npm package name returned 404 at validation time, but availability may change before publication.
 
 ## Version 0.5.2 validation (2026-09-25)
@@ -111,7 +123,7 @@ claim of production reliability or a long-duration soak test.
 ## Not verified / not provided
 
 - Hosted public OAuth endpoint or ChatGPT plugin store distribution.
-- Windows/WSL operation. Previous 0.1 GitHub CI passed Linux/macOS with Node 22/24.
+- Windows login-time service installation and native Windows Codex delegation. The core file and PowerShell command workflow is covered above.
 - Isolation against hostile local processes, a kernel sandbox, or an independent
   security audit.
 - Day-long soak tests, reboot-resuming execution, browser/SSH/database integrations.
@@ -167,3 +179,7 @@ and lookalike-host rejection, signed-query redaction, and real PNG decoding/impo
 ## 0.5.0 local paths mode
 
 `npm run check`: 22 tests pass. New MCP transport integration verifies that no project parameter or switching tool is required, relative paths use the reported home directory, absolute paths read/write/patch/search two independent directories, commands run in their own cwd and share one concurrency cap. Private files, runtime state, parent traversal and symlinks remain rejected. Existing fixed-root tests still pass. Local tunnel configured with `--dynamic-projects`; no business project code was changed for this upgrade. ChatGPT tool refresh and live verification are recorded separately below.
+
+## Repository integration check (2026-09-26)
+
+The Windows task history patches were reconstructed on macOS after the remote synchronization turn did not return a commit. `npm run check` passed: 36 total, 34 passed, 2 Windows-only tests skipped, 0 failed. Windows results above are from the referenced Windows task, not a new Mac-hosted Windows run. The Windows source changes are not yet an npm release.

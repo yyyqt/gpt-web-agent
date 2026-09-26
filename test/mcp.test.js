@@ -11,6 +11,8 @@ import { request } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { stateBase } from '../src/operator.js';
+import { cwdCommand, writeLaterCommand } from './support.js';
 
 const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
 async function workspace(t) {
@@ -29,6 +31,7 @@ async function exercise(client, root) {
   assert.equal(tools.find(t => t.name === 'start_command').annotations.readOnlyHint, false);
   const info = data(await client.callTool({ name: 'workspace_info', arguments: {} }));
   assert.equal(info.sandboxed, false); assert.equal(info.hostExecution, true);
+  assert.equal(info.platform, process.platform); assert.equal(info.architecture, process.arch);
   // Real agent-shaped loop: create buggy program + test, observe failure, edit, rerun.
   await client.callTool({ name: 'write_file', arguments: { path: 'sum.cjs', content: 'module.exports = (a, b) => a - b;', expectedSha256: null } });
   await client.callTool({ name: 'write_file', arguments: { path: 'sum.test.cjs', content: "require('node:assert/strict').equal(require('./sum.cjs')(2, 3), 5);", expectedSha256: null } });
@@ -48,7 +51,7 @@ async function exercise(client, root) {
   assert.equal(status.stderr, undefined);
   const before = data(await client.callTool({ name: 'read_file', arguments: { path: 'sum.cjs' } }));
   data(await client.callTool({ name: 'patch_file', arguments: { path: 'sum.cjs', edits: [{ oldText: 'a - b', newText: 'a + b' }], expectedSha256: before.sha256 } }));
-  assert.equal((await run()).status, 'succeeded');
+  const fixed = await run(); assert.equal(fixed.status, 'succeeded', JSON.stringify(fixed));
   assert.match(await fs.readFile(path.join(root, 'sum.cjs'), 'utf8'), /a \+ b/);
   const bad = await client.callTool({ name: 'read_file', arguments: { path: '../secret' } });
   assert.equal(bad.isError, true);
@@ -106,7 +109,9 @@ test('HTTP client disconnect does not stop dispatched job; reconnect can retriev
   const root = await workspace(t);
   const probe = net.createServer(); probe.listen(0, '127.0.0.1'); await once(probe, 'listening');
   const port = probe.address().port; await new Promise(resolve => probe.close(resolve));
-  const child = spawn(process.execPath, [cli, '--root', root, '--transport', 'http', '--port', String(port), '--allow-host-exec', '--allow-codex', '--max-seconds', '7200'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const flags = [cli, '--root', root, '--transport', 'http', '--port', String(port), '--allow-host-exec', '--max-seconds', '7200'];
+  if (process.platform !== 'win32') flags.push('--allow-codex');
+  const child = spawn(process.execPath, flags, { stdio: ['ignore', 'ignore', 'pipe'] });
   child.stderr.resume();
   t.after(async () => { if (child.exitCode === null) { const stopped = once(child, 'exit'); child.kill('SIGTERM'); await stopped; } });
   const base = `http://127.0.0.1:${port}`;
@@ -114,10 +119,10 @@ test('HTTP client disconnect does not stop dispatched job; reconnect can retriev
   const connect = async () => { const c = new Client({ name: 'reconnect-test', version: '1' }); await c.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp'))); return c; };
   const first = await connect();
   const names = (await first.listTools()).tools.map(t => t.name);
-  assert.ok(names.includes('start_codex'));
+  assert.equal(names.includes('start_codex'), process.platform !== 'win32');
   const info = data(await first.callTool({ name: 'workspace_info', arguments: {} }));
   assert.equal(info.maxCommandSeconds, 7200);
-  const job = data(await first.callTool({ name: 'start_command', arguments: { command: 'sleep 1; printf survived > survived.txt' } }));
+  const job = data(await first.callTool({ name: 'start_command', arguments: { command: writeLaterCommand('survived.txt', 'survived', 1000) } }));
   await first.close();
   await sleep(1200);
   const second = await connect(); t.after(() => second.close());
@@ -132,7 +137,9 @@ test('local paths mode: no project parameter or switch; files, patches, cwd and 
   const a = await fs.realpath(await workspace(t)), b = await fs.realpath(await workspace(t));
   const client = new Client({ name: 'local-paths-test', version: '1' });
   t.after(() => client.close());
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli, '--dynamic-projects', '--allow-host-exec', '--max-concurrent', '1'], env: { ...process.env, HOME: home }, stderr: 'pipe' }));
+  const dynamicEnv = { ...process.env, HOME: home, USERPROFILE: home };
+  if (process.platform === 'win32') dynamicEnv.LOCALAPPDATA = path.join(home, 'AppData', 'Local');
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli, '--dynamic-projects', '--allow-host-exec', '--max-concurrent', '1'], env: dynamicEnv, stderr: 'pipe' }));
   const tools = (await client.listTools()).tools;
   assert.ok(tools.every(tool => !tool.inputSchema.properties.projectRoot));
   assert.deepEqual(tools.find(t => t.name === 'import_image')._meta['openai/fileParams'], ['file']);
@@ -148,10 +155,11 @@ test('local paths mode: no project parameter or switch; files, patches, cwd and 
   assert.equal(await fs.readFile(path.join(home, 'relative.txt'), 'utf8'), 'home');
   assert.ok((await call('list_files', { directory: b })).entries.some(e => e.name === 'same.txt'));
   assert.equal((await call('search_text', { directory: b, query: 'B' })).hits.length, 1);
-  await fs.symlink(b, path.join(a, 'link'));
-  for (const target of [path.join(home, 'Library/Application Support/gpt-web-agent/local-state/audit.jsonl'), path.join(a, '.env'), path.join(a, 'link', 'same.txt'), a + '/../escape']) assert.equal((await client.callTool({ name: 'read_file', arguments: { path: target } })).isError, true);
-  const first = await call('start_command', { cwd: a, command: 'sleep 1; pwd' });
-  const second = await call('start_command', { cwd: b, command: 'pwd' });
+  await fs.symlink(b, path.join(a, 'link'), process.platform === 'win32' ? 'junction' : undefined);
+  const privateState = path.join(stateBase(process.platform, home, process.env.XDG_STATE_HOME, dynamicEnv.LOCALAPPDATA), 'audit.jsonl');
+  for (const target of [privateState, path.join(a, '.env'), path.join(a, 'link', 'same.txt'), a + '/../escape']) assert.equal((await client.callTool({ name: 'read_file', arguments: { path: target } })).isError, true);
+  const first = await call('start_command', { cwd: a, command: cwdCommand(1000) });
+  const second = await call('start_command', { cwd: b, command: cwdCommand() });
   assert.equal(first.status, 'running'); assert.equal(second.status, 'queued');
   for (let i = 0; i < 100; i++) {
     if ((await call('get_command', { id: second.id })).status === 'succeeded') break;

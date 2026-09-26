@@ -31,6 +31,7 @@ export function createServer(runtime) {
     });
   };
   register('workspace_info', 'Use first to discover capabilities, limits and the execution safety boundary.', {}, true, async () => ({
+    platform: process.platform, architecture: process.arch,
     workspace: runtime.root, absolutePaths: runtime.allowAbsolutePaths, fixedProject: !runtime.allowAbsolutePaths, readOnly: runtime.readOnly, hostExecution: runtime.allowHostExec,
     sandboxed: false, codexEnabled: runtime.allowCodex, imageImport: true, imageFileLimitBytes: 20971520, textFileLimitBytes: runtime.limits.fileBytes, commandOutputLimitBytes: runtime.limits.outputBytes,
     maxConcurrentCommands: runtime.limits.concurrency, maxCommandSeconds: runtime.limits.timeoutSeconds, commandResultsPersisted: true, queuePolicy: 'FIFO', maxRetainedOrPendingJobs: 100, defaultExecution: 'direct', codexDelegation: 'explicit-user-request-only',

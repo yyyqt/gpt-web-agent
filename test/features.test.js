@@ -6,6 +6,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { Runtime } from '../src/runtime.js';
 import { downloadImage, imageURL, validateImage, IMAGE_LIMIT } from '../src/images.js';
+import { nodeCommand } from './support.js';
 const code = value => e => e.code === value;
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'bridge-feature-'));
@@ -25,7 +26,7 @@ test('patches original text atomically, preserves CRLF, rejects overlap, ambigui
 });
 test('log pages reconstruct Unicode output and survive restart', async t => {
   const r = await fixture(t);
-  const j = await r.startJob({ command: `printf '你好😀abc'` }); await r.jobs.get(j.id).done;
+  const j = await r.startJob({ command: nodeCommand("process.stdout.write('你好😀abc')") }); await r.jobs.get(j.id).done;
   let offset = 0, result = '';
   do { const page = r.output({ id: j.id, offset, limit: 1 }); result += page.output; offset = page.nextOffset; if (!page.hasMore) break; } while (true);
   assert.equal(result, '你好😀abc');

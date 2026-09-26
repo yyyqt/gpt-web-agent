@@ -62,14 +62,18 @@ export class Runtime {
   }
   writable() { if (this.readOnly) fail('READ_ONLY', 'Server was started in read-only mode'); }
   async resolve(relative = '.', { missing = false } = {}) {
-    if (typeof relative !== 'string' || relative.includes('\0') || (path.isAbsolute(relative) && !this.allowAbsolutePaths) || relative.includes('\\')) {
+    const absolute = typeof relative === 'string' && path.isAbsolute(relative);
+    const nativeWindowsAbsolute = process.platform === 'win32' && absolute && this.allowAbsolutePaths;
+    if (typeof relative !== 'string' || relative.includes('\0') || (absolute && !this.allowAbsolutePaths) || (relative.includes('\\') && !nativeWindowsAbsolute)) {
       fail('INVALID_PATH', 'Use a relative POSIX path inside the workspace');
     }
-    const base = this.allowAbsolutePaths && path.isAbsolute(relative) ? path.parse(relative).root : this.root;
-    const parts = relative.split('/').filter(p => p && p !== '.');
+    const base = this.allowAbsolutePaths && absolute ? path.parse(relative).root : this.root;
+    const input = absolute ? relative.slice(base.length) : relative;
+    const parts = input.split(nativeWindowsAbsolute ? /[\\/]/ : '/').filter(p => p && p !== '.');
     if (parts.some(p => p === '..' || PRIVATE.test(p))) fail('PATH_DENIED', 'Parent traversal and private paths are not exposed');
     const target = path.join(base, ...parts);
-    if (this.state && (target === this.state || target.startsWith(this.state + path.sep))) fail('PATH_DENIED', 'Runtime state is not exposed through file tools');
+    const stateRelative = this.state && path.relative(this.state, target);
+    if (this.state && (stateRelative === '' || (!stateRelative.startsWith('..' + path.sep) && stateRelative !== '..' && !path.isAbsolute(stateRelative)))) fail('PATH_DENIED', 'Runtime state is not exposed through file tools');
     let resolved = base;
     for (let i = 0; i < parts.length; i++) {
       resolved = path.join(resolved, parts[i]);
@@ -364,7 +368,12 @@ export class Runtime {
   }
   async close() {
     this.closing = true;
-    for (const [id, job] of this.jobs) if (['running', 'queued'].includes(job.status)) this.stopJob(id);
+    // taskkill is less reliable when several instances race over related
+    // process snapshots, so shut Windows jobs down one tree at a time.
+    for (const [id, job] of this.jobs) if (['running', 'queued'].includes(job.status)) {
+      this.stopJob(id);
+      if (process.platform === 'win32') await job.done;
+    }
     await Promise.all([...this.jobs.values()].map(j => j.done));
     await this.queue;
   }
