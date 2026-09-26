@@ -46,7 +46,6 @@ It's a small program (an MCP server) running on your computer, connected to your
 - **Keeps running when you close the tab**: tests and builds already started keep running on your computer; ask for the result later.
 - **Leaves your account alone**: no ChatGPT proxying, no browser cookies, only OpenAI's official tunnel.
 
-> **Windows release status:** Native support passed real-machine ChatGPT acceptance but is not published to npm yet. npm 0.5.6 does not include these fixes. Use the source branch instructions in [Windows setup](docs/WINDOWS.md) for now. The npm install command below currently applies to macOS/Linux.
 
 ## Quick start
 

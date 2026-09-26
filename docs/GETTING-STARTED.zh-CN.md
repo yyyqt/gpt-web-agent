@@ -16,7 +16,6 @@
 
 **开始安装前，先打开 [Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels) 看能否创建隧道。** ChatGPT 订阅不等于已获得隧道权限；如果没有 **Create tunnel**，先解决账户或组织权限，下面的安装步骤暂时无法完成。
 
-> **Windows 版本状态：** 原生适配已通过真机网页验收，尚未发布到 npm；npm 的 0.5.6 不含这些修复。请先按 [Windows 使用说明](WINDOWS.md) 从适配分支安装。下方 npm 安装命令目前用于 macOS/Linux。
 
 ## 1. 打开终端，安装程序
 

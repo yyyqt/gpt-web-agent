@@ -16,7 +16,6 @@ When you finish this guide, you can tell ChatGPT "find my XXX project, fix it an
 
 The screenshots below were taken in the Chinese ChatGPT interface; the English button names are given in the text.
 
-> **Windows release status:** Native support passed real-machine ChatGPT acceptance but is not published to npm yet. npm 0.5.6 does not include these fixes. Use the source branch instructions in [Windows setup](WINDOWS.md) for now. The npm install command below currently applies to macOS/Linux.
 
 ## 1. Open a terminal and install the program
 

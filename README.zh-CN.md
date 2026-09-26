@@ -46,7 +46,6 @@ GPT： [修改 src/image.js] [运行 npm test] 测试通过。改动了 2 个文
 - **关网页也不中断**：已经开始的测试、构建会在电脑上继续跑，回来再问结果。
 - **不碰你的账号**：不代理 ChatGPT、不读取浏览器 Cookie，只走 OpenAI 官方隧道。
 
-> **Windows 版本状态：** 原生适配已通过真机网页验收，尚未发布到 npm；npm 的 0.5.6 不含这些修复。请先按 [Windows 使用说明](docs/WINDOWS.md) 从适配分支安装。下方 npm 安装命令目前用于 macOS/Linux。
 
 ## 快速开始
 

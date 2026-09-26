@@ -1,13 +1,13 @@
 # Windows 原生使用与验收
 
-Windows 原生适配在 `windows-native-support` 分支完成真机网页验收；npm 的 `0.5.6` 正式版不包含后续修复。不要把“安装成功”当作“已连接”。正式新版发布前，使用验收分支的源码：
+Windows 原生适配已通过真机网页验收，从 `0.6.0` 起包含在 npm 包中。打开 Windows PowerShell，运行：
 
 ```powershell
-git clone --branch windows-native-support https://github.com/yyyqt/gpt-web-agent.git
-cd gpt-web-agent
-npm.cmd ci --ignore-scripts
-node src/cli.js connect
+npm.cmd install --global gpt-web-agent@latest
+gpt-web-agent.cmd connect
 ```
+
+已经安装旧版的用户也用上面的安装命令升级。源码开发与测试可以克隆仓库后运行 `npm.cmd ci --ignore-scripts` 和 `npm.cmd run check`。
 
 需要 Node.js 22 或以上、Windows PowerShell，以及可创建 Secure MCP Tunnel 的 OpenAI 账户。按上手教程创建自己的隧道和受限运行 key。需要运行测试时，在命令权限提示输入 `YES`；key 的粘贴输入不会显示字符。Windows key 使用 DPAPI 按当前系统用户加密保存，不能复制给另一台电脑直接使用。
 

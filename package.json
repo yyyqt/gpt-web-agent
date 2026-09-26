@@ -1,8 +1,14 @@
 {
   "name": "gpt-web-agent",
-  "version": "0.5.6",
+  "version": "0.6.0",
   "description": "A local MCP tool runtime for browser-based AI agents. No model proxy or inference API required by the runtime.",
-  "keywords": ["chatgpt", "mcp", "agent", "local-tools", "developer-tools"],
+  "keywords": [
+    "chatgpt",
+    "mcp",
+    "agent",
+    "local-tools",
+    "developer-tools"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yyyqt/gpt-web-agent.git"
