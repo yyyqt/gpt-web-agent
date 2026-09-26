@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import net from 'node:net';
 import { request } from 'node:http';
@@ -13,6 +13,16 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { stateBase } from '../src/operator.js';
 import { cwdCommand, writeLaterCommand } from './support.js';
+
+async function stopServer(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const stopped = once(child, 'exit');
+  if (process.platform === 'win32') {
+    const result = spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, timeout: 10000 });
+    if (result.error || result.status !== 0) child.kill();
+  } else child.kill('SIGTERM');
+  await stopped;
+}
 
 const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
 async function workspace(t) {
@@ -82,7 +92,7 @@ test('HTTP MCP: real tool loop plus Origin/Host/JSON rejection', async t => {
   const port = probe.address().port; await new Promise(resolve => probe.close(resolve));
   const child = spawn(process.execPath, [cli, '--root', root, '--transport', 'http', '--port', String(port), '--allow-host-exec'], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = ''; child.stderr.on('data', d => { stderr += d; });
-  t.after(async () => { if (child.exitCode === null) { const stopped = once(child, 'exit'); child.kill('SIGTERM'); await stopped; } });
+  t.after(() => stopServer(child));
   const base = `http://127.0.0.1:${port}`;
   let ready = false;
   for (let i = 0; i < 100; i++) {
@@ -113,7 +123,7 @@ test('HTTP client disconnect does not stop dispatched job; reconnect can retriev
   if (process.platform !== 'win32') flags.push('--allow-codex');
   const child = spawn(process.execPath, flags, { stdio: ['ignore', 'ignore', 'pipe'] });
   child.stderr.resume();
-  t.after(async () => { if (child.exitCode === null) { const stopped = once(child, 'exit'); child.kill('SIGTERM'); await stopped; } });
+  t.after(() => stopServer(child));
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 100; i++) { try { if ((await fetch(base + '/health')).ok) break; } catch {} await sleep(30); }
   const connect = async () => { const c = new Client({ name: 'reconnect-test', version: '1' }); await c.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp'))); return c; };
@@ -126,7 +136,13 @@ test('HTTP client disconnect does not stop dispatched job; reconnect can retriev
   await first.close();
   await sleep(1200);
   const second = await connect(); t.after(() => second.close());
-  const result = data(await second.callTool({ name: 'get_command', arguments: { id: job.id } }));
+  let result;
+  const deadline = Date.now() + 15000;
+  do {
+    result = data(await second.callTool({ name: 'get_command', arguments: { id: job.id } }));
+    if (!['running', 'queued'].includes(result.status)) break;
+    await sleep(100);
+  } while (Date.now() < deadline);
   assert.equal(result.status, 'succeeded'); assert.equal(result.exitCode, 0);
   assert.equal(await fs.readFile(path.join(root, 'survived.txt'), 'utf8'), 'survived');
   assert.ok(data(await second.callTool({ name: 'list_commands', arguments: {} })).jobs.some(j => j.id === job.id));
